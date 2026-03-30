@@ -1086,8 +1086,11 @@ function showDashboard() {
   if (currentRole === 'admin') {
     document.getElementById('user-mgmt-btn').style.display = 'flex';
   }
-  initFilters(); applyFilters(); computeAutoLeft(); computeBudget(); computeFmBudget(); computeProductionKPI();
-  loadLeftEmployees().then(() => {});
+  // Supabase'den veri çek, sonra dashboard'u başlat
+  loadFromSupabase().then(() => {
+    initFilters(); applyFilters(); computeAutoLeft(); computeBudget(); computeFmBudget(); computeProductionKPI();
+    loadLeftEmployees().then(() => {});
+  });
   (function(){
     const now = new Date();
     const dt = now.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -1158,6 +1161,59 @@ async function deleteUser(id, email) {
   await supabaseClient.from('user_roles').delete().eq('id', id);
   document.getElementById('user-mgmt-msg').textContent = '✓ Kullanıcı silindi.';
   await loadUsers();
+}
+
+
+async function loadFromSupabase() {
+  const statusEl = document.getElementById('upload-status');
+  statusEl.textContent = '⏳ Veriler yükleniyor...';
+  try {
+    // Tüm kayıtları çek (sayfalı)
+    let allRecords = [];
+    let from = 0;
+    const BATCH = 1000;
+    while (true) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/absence_records?select=*&order=date.asc&offset=${from}&limit=${BATCH}`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const batch = await res.json();
+      allRecords = allRecords.concat(batch);
+      if (batch.length < BATCH) break;
+      from += BATCH;
+    }
+
+    if (allRecords.length === 0) {
+      statusEl.textContent = '⚠️ Veritabanında kayıt yok — Excel yükleyin';
+      return false;
+    }
+
+    // RAW güncelle
+    RAW.length = 0;
+    allRecords.forEach(r => RAW.push({
+      sicil: r.sicil || '',
+      name: r.name || '',
+      department: r.department || '',
+      alt_department: r.alt_department || '—',
+      date: r.date || '',
+      status: r.status || '',
+      days: parseFloat(r.days) || 0
+    }));
+
+    // PERSON_INFO ve PERSON_NORMAL güncelle
+    Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
+    Object.keys(PERSON_INFO).forEach(k => delete PERSON_INFO[k]);
+    RAW.forEach(r => {
+      if (!PERSON_INFO[r.name]) PERSON_INFO[r.name] = {sicil:r.sicil,department:r.department,alt_department:r.alt_department,normal_hours:0};
+    });
+
+    statusEl.textContent = `✅ ${allRecords.length} kayıt yüklendi`;
+    return true;
+  } catch(err) {
+    statusEl.textContent = '⚠️ Veri yüklenemedi: ' + err.message;
+    console.error(err);
+    return false;
+  }
 }
 
 function setThisMonth() {
