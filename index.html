@@ -1172,8 +1172,8 @@ async function deleteUser(id, email) {
 
 
 async function fetchAll(table) {
-  const noDateTables = ['person_normal', 'person_fm', 'user_roles', 'employee_status'];
-  const orderCol = noDateTables.includes(table) ? 'id' : 'date';
+  const nameOrderTables = ['person_normal', 'person_fm', 'user_roles', 'employee_status'];
+  const orderCol = nameOrderTables.includes(table) ? 'name' : 'date';
   let all = [], from = 0;
   const BATCH = 1000;
   while (true) {
