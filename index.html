@@ -1217,7 +1217,7 @@ async function fetchAll(table) {
 
 async function loadFromSupabase() {
   const statusEl = document.getElementById('upload-status');
-  statusEl.textContent = '⏳ Veriler yükleniyor...';
+  if(statusEl) statusEl.textContent = '⏳ Veriler yükleniyor...';
   try {
     // Paralel çek
     const [absenceRecords, normalRecords, fmRecords] = await Promise.all([
@@ -1227,7 +1227,7 @@ async function loadFromSupabase() {
     ]);
 
     if (absenceRecords.length === 0 && normalRecords.length === 0) {
-      statusEl.textContent = '⚠️ Veritabanında kayıt yok — Excel yükleyin';
+      if(statusEl) statusEl.textContent = '⚠️ Veritabanında kayıt yok — Excel yükleyin';
       return false;
     }
 
@@ -1274,10 +1274,10 @@ async function loadFromSupabase() {
       // Excel yüklendiğinde zaten dolduruluyor
     });
 
-    statusEl.textContent = `✅ ${absenceRecords.length} devamsızlık · ${normalRecords.length} normal · ${fmRecords.length} FM kaydı`;
+    if(statusEl) statusEl.textContent = `✅ ${absenceRecords.length} devamsızlık · ${normalRecords.length} normal · ${fmRecords.length} FM kaydı`;
     return true;
   } catch(err) {
-    statusEl.textContent = '⚠️ Veri yüklenemedi: ' + err.message;
+    if(statusEl) statusEl.textContent = '⚠️ Veri yüklenemedi: ' + err.message;
     console.error(err);
     return false;
   }
@@ -1693,7 +1693,7 @@ function handleExcelUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   const statusEl = document.getElementById('upload-status');
-  statusEl.textContent = '⏳ Yükleniyor...';
+  if(statusEl) statusEl.textContent = '⏳ Yükleniyor...';
 
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -1708,7 +1708,7 @@ function handleExcelUpload(event) {
       for (let i = 0; i < Math.min(10, rows.length); i++) {
         if (rows[i].includes('NORMAL')) { headerIdx = i; break; }
       }
-      if (headerIdx === -1) { statusEl.textContent = '❌ Header bulunamadı'; return; }
+      if (headerIdx === -1) { if(statusEl) statusEl.textContent = '❌ Header bulunamadı'; return; }
 
       const headers = rows[headerIdx];
       const toFloat = v => {
@@ -1802,10 +1802,10 @@ function handleExcelUpload(event) {
 
       const uniqueEmp = new Set(newRaw.map(r=>r.sicil).filter(Boolean)).size || new Set(newRaw.map(r=>r.name)).size;
       document.getElementById('k-emp').textContent = uniqueEmp;
-      statusEl.textContent = `✅ ${newRaw.length} kayıt yüklendi`;
+      if(statusEl) statusEl.textContent = `✅ ${newRaw.length} kayıt yüklendi`;
 
     } catch(err) {
-      statusEl.textContent = '❌ Hata: ' + err.message;
+      if(statusEl) statusEl.textContent = '❌ Hata: ' + err.message;
       console.error(err);
     }
   };
@@ -1815,7 +1815,7 @@ function handleExcelUpload(event) {
 
 async function saveToSupabase(records) {
   const statusEl = document.getElementById('upload-status');
-  statusEl.textContent = '⏳ Veritabanına kaydediliyor...';
+  if(statusEl) statusEl.textContent = '⏳ Veritabanına kaydediliyor...';
 
   try {
     const BATCH = 1000;
@@ -1876,10 +1876,10 @@ async function saveToSupabase(records) {
       if (!res.ok) throw new Error('FM kayıt hatası: ' + await res.text());
     }
 
-    statusEl.textContent = `✅ ${records.length} devamsızlık + ${NORMAL_DATA.length} normal + ${FM_DATA.length} FM kaydı yazıldı`;
+    if(statusEl) statusEl.textContent = `✅ ${records.length} devamsızlık + ${NORMAL_DATA.length} normal + ${FM_DATA.length} FM kaydı yazıldı`;
 
   } catch(err) {
-    statusEl.textContent = '⚠️ Dashboard güncellendi fakat DB hatası: ' + err.message;
+    if(statusEl) statusEl.textContent = '⚠️ Dashboard güncellendi fakat DB hatası: ' + err.message;
     console.error('Supabase error:', err);
   }
 }
