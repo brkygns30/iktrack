@@ -1745,35 +1745,8 @@ function handleExcelUpload(event) {
 async function saveToSupabase(records) {
   try {
     const BATCH = 1000;
-
-    // Sadece yüklenen Excel'deki aylara ait verileri sil
-
-    // Yüklenen aylara ait tüm satırları sil (devamsızlık + NORMAL_HOURS + FM_HOURS)
-    for (const ym of uploadedMonths) {
-      const [yr, mo] = ym.split('-').map(Number);
-      const lastDay = new Date(yr, mo, 0).getDate();
-      const lastDate = `${ym}-${String(lastDay).padStart(2,'0')}`;
-      await fetch(`${SUPABASE_URL}/rest/v1/hr_data?date=gte.${ym}-01&date=lte.${lastDate}`, {
-        method: 'DELETE',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
-      });
-    }
-    // PERSON_* verileri — yüklenen ayın tag'ına göre sil
-    const personMonthTagDel = uploadedMonths.sort()[0] + '-01';
-    await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=in.(PERSON_NORMAL,PERSON_FM)&date=eq.${personMonthTagDel}`, {
-      method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
-    });
-    // PERSON_LAST — yüklenen aylar aralığındaki tarihleri sil
-    const sortedMonths = uploadedMonths.sort();
-    const minMonth = sortedMonths[0] + '-01';
-    const [maxYr, maxMo] = sortedMonths.slice(-1)[0].split('-').map(Number);
-    const maxLastDay = new Date(maxYr, maxMo, 0).getDate();
-    const maxMonth = sortedMonths.slice(-1)[0] + '-' + String(maxLastDay).padStart(2,'0');
-    await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=eq.PERSON_LAST&date=gte.${minMonth}&date=lte.${maxMonth}`, {
-      method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
-    });
+    const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
+    const personMonthTag = (uploadedMonths[0] || '2000-01') + '-01';
 
     // Tüm veriyi tek array'de topla
     const allRows = [];
@@ -1799,9 +1772,7 @@ async function saveToSupabase(records) {
       status: 'FM_HOURS', hours: r.fm_hours
     }));
 
-    // 4. Kişi bazlı normal ve FM — ay bazlı (yüklenen Excel'in ilk ayını tag olarak kullan)
-    const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
-    const personMonthTag = uploadedMonths[0] + '-01';
+    // 4. Kişi bazlı normal ve FM
     Object.entries(PERSON_NORMAL).forEach(([name, hours]) => allRows.push({
       sicil: '', name, department: '', alt_department: '',
       date: personMonthTag, status: 'PERSON_NORMAL', hours
@@ -1817,10 +1788,10 @@ async function saveToSupabase(records) {
       date: lastDate, status: 'PERSON_LAST', hours: 0
     }));
 
-    // Batch'ler halinde yükle
+    // Upsert — name+date+status unique constraint ile üstüne yazar
     console.log('Toplam yazılacak:', allRows.length, 'satır');
     for (let i = 0; i < allRows.length; i += BATCH) {
-      console.log(`Batch ${i}-${Math.min(i+BATCH,allRows.length)} yazılıyor...`);
+      console.log(`Batch ${i}-${Math.min(i+BATCH, allRows.length)} yazılıyor...`);
       const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data`, {
         method: 'POST',
         headers: {
@@ -1831,9 +1802,8 @@ async function saveToSupabase(records) {
         },
         body: JSON.stringify(allRows.slice(i, i + BATCH))
       });
-      if (!res.ok) { const errText = await res.text(); console.error(`Batch ${i}-${i+BATCH} hatası:`, errText); throw new Error('Kayıt hatası: ' + errText); }
+      if (!res.ok) { const errText = await res.text(); console.error(`Batch hatası:`, errText); throw new Error('Kayıt hatası: ' + errText); }
     }
-
     console.log(`✅ ${allRows.length} kayıt Supabase'e yazıldı`);
   } catch(err) {
     console.error('Supabase error:', err);
