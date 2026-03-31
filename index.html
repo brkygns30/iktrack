@@ -1773,14 +1773,14 @@ function handleExcelUpload(event) {
       applyFilters();
 
       const uniqueEmp = new Set(newRaw.map(r=>r.sicil).filter(Boolean)).size || new Set(newRaw.map(r=>r.name)).size;
-      document.getElementById('k-emp').textContent = uniqueEmp;
-
-      // Supabase'e kaydet
-      await saveToSupabase(newRaw);
+      const kEmp = document.getElementById('k-emp'); if(kEmp) kEmp.textContent = uniqueEmp;
 
     } catch(err) {
       console.error(err);
     }
+
+    // Supabase'e kaydet (try-catch dışında)
+    await saveToSupabase(newRaw);
   };
   reader.readAsArrayBuffer(file);
 }
