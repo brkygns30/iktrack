@@ -713,6 +713,8 @@ function applyFilters() {
   const status = document.getElementById('f-status').value;
   const from   = document.getElementById('f-from').value;
   const to     = document.getElementById('f-to').value;
+  // Timezone toleransı: from'dan 1 gün öncesini de dahil et
+  const fromAdj = from ? new Date(new Date(from) - 86400000).toISOString().slice(0,10) : '';
   filtered = RAW.filter(r => {
     if (dept && r.department   !== dept) return false;
     if (alt  && r.alt_department !== alt) return false;
@@ -723,7 +725,7 @@ function applyFilters() {
     } else if (status) {
       if (r.status !== status) return false;
     }
-    if (from && r.date < from) return false;
+    if (fromAdj && r.date < fromAdj) return false;
     if (to   && r.date > to)   return false;
     return true;
   });
@@ -1266,10 +1268,11 @@ function updateKPIs() {
   const alt    = document.getElementById('f-alt').value;
   const from   = document.getElementById('f-from').value;
   const to     = document.getElementById('f-to').value;
+  const fromAdj2 = from ? new Date(new Date(from) - 86400000).toISOString().slice(0,10) : '';
   const normalFiltered = NORMAL_DATA.filter(r => {
     if (dept && r.department   !== dept) return false;
     if (alt  && r.alt_department !== alt) return false;
-    if (from && r.date < from) return false;
+    if (fromAdj2 && r.date < fromAdj2) return false;
     if (to   && r.date > to)   return false;
     return true;
   });
@@ -1282,7 +1285,7 @@ function updateKPIs() {
   const fmFiltered = FM_DATA.filter(r => {
     if (dept && r.department   !== dept) return false;
     if (alt  && r.alt_department !== alt) return false;
-    if (from && r.date < from) return false;
+    if (fromAdj2 && r.date < fromAdj2) return false;
     if (to   && r.date > to)   return false;
     return true;
   });
