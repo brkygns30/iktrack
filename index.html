@@ -360,7 +360,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     Üretim Verisi
   </button>
   <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(event)">
-  <span id="upload-status" style="display:none;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-left:8px"></span>
+  <span id="upload-status" style="display:none;"></span>
   <button id="user-mgmt-btn" onclick="openUserMgmt()" style="display:none;margin-left:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;align-items:center;gap:6px;">
     👥 Kullanıcılar
   </button>
@@ -1217,7 +1217,7 @@ async function fetchAll(table) {
 
 async function loadFromSupabase() {
   const statusEl = document.getElementById('upload-status');
-  if(statusEl) statusEl.textContent = '⏳ Veriler yükleniyor...';
+  
   try {
     // Paralel çek
     const [absenceRecords, normalRecords, fmRecords] = await Promise.all([
@@ -1227,7 +1227,7 @@ async function loadFromSupabase() {
     ]);
 
     if (absenceRecords.length === 0 && normalRecords.length === 0) {
-      if(statusEl) statusEl.textContent = '⚠️ Veritabanında kayıt yok — Excel yükleyin';
+      
       return false;
     }
 
@@ -1274,10 +1274,10 @@ async function loadFromSupabase() {
       // Excel yüklendiğinde zaten dolduruluyor
     });
 
-    if(statusEl) statusEl.textContent = `✅ ${absenceRecords.length} devamsızlık · ${normalRecords.length} normal · ${fmRecords.length} FM kaydı`;
+    
     return true;
   } catch(err) {
-    if(statusEl) statusEl.textContent = '⚠️ Veri yüklenemedi: ' + err.message;
+    
     console.error(err);
     return false;
   }
@@ -1693,7 +1693,7 @@ function handleExcelUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   const statusEl = document.getElementById('upload-status');
-  if(statusEl) statusEl.textContent = '⏳ Yükleniyor...';
+  
 
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -1708,7 +1708,7 @@ function handleExcelUpload(event) {
       for (let i = 0; i < Math.min(10, rows.length); i++) {
         if (rows[i].includes('NORMAL')) { headerIdx = i; break; }
       }
-      if (headerIdx === -1) { if(statusEl) statusEl.textContent = '❌ Header bulunamadı'; return; }
+      if (headerIdx === -1) {  return; }
 
       const headers = rows[headerIdx];
       const toFloat = v => {
@@ -1802,10 +1802,10 @@ function handleExcelUpload(event) {
 
       const uniqueEmp = new Set(newRaw.map(r=>r.sicil).filter(Boolean)).size || new Set(newRaw.map(r=>r.name)).size;
       document.getElementById('k-emp').textContent = uniqueEmp;
-      if(statusEl) statusEl.textContent = `✅ ${newRaw.length} kayıt yüklendi`;
+      
 
     } catch(err) {
-      if(statusEl) statusEl.textContent = '❌ Hata: ' + err.message;
+      
       console.error(err);
     }
   };
@@ -1815,7 +1815,7 @@ function handleExcelUpload(event) {
 
 async function saveToSupabase(records) {
   const statusEl = document.getElementById('upload-status');
-  if(statusEl) statusEl.textContent = '⏳ Veritabanına kaydediliyor...';
+  
 
   try {
     const BATCH = 1000;
@@ -1837,9 +1837,9 @@ async function saveToSupabase(records) {
     }
 
     // 2. Normal çalışma kayıtları — önce sil sonra ekle
-    await fetch(`${SUPABASE_URL}/rest/v1/normal_records?id=gte.0`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/normal_records?date=gte.2000-01-01`, {
       method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
     });
     for (let i = 0; i < NORMAL_DATA.length; i += BATCH) {
       const batch = NORMAL_DATA.slice(i, i + BATCH);
@@ -1857,9 +1857,9 @@ async function saveToSupabase(records) {
     }
 
     // 3. FM kayıtları — önce sil sonra ekle
-    await fetch(`${SUPABASE_URL}/rest/v1/fm_records?id=gte.0`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/fm_records?date=gte.2000-01-01`, {
       method: 'DELETE',
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
     });
     for (let i = 0; i < FM_DATA.length; i += BATCH) {
       const batch = FM_DATA.slice(i, i + BATCH);
@@ -1876,10 +1876,10 @@ async function saveToSupabase(records) {
       if (!res.ok) throw new Error('FM kayıt hatası: ' + await res.text());
     }
 
-    if(statusEl) statusEl.textContent = `✅ ${records.length} devamsızlık + ${NORMAL_DATA.length} normal + ${FM_DATA.length} FM kaydı yazıldı`;
+    
 
   } catch(err) {
-    if(statusEl) statusEl.textContent = '⚠️ Dashboard güncellendi fakat DB hatası: ' + err.message;
+    
     console.error('Supabase error:', err);
   }
 }
