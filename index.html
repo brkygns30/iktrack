@@ -1669,6 +1669,7 @@ function handleExcelUpload(event) {
 
   const reader = new FileReader();
   reader.onload = async function(e) {
+    let newRaw = [];
     try {
       const data = new Uint8Array(e.target.result);
       const wb   = XLSX.read(data, {type:'array', cellDates:true});
@@ -1701,7 +1702,7 @@ function handleExcelUpload(event) {
       const NORMAL_COLS2 = ["NORMAL", "CMTES\u0130", "H.TAT\u0130L", "G.TAT\u0130L", "G\u00d6REVL\u0130", "UZAKTAN \u00c7ALI\u015eMA"];
       const FM_COLS      = ["FM1%50", "FM%75", "FM2%100", "FM3%100"];
 
-      const newRaw     = [];
+      newRaw     = [];
       const newNormal  = [];
       const newFM      = [];
       const newPersonNormal = {};
