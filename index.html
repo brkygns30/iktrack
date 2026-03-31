@@ -669,8 +669,10 @@ const FM_BUDGET_BY_MONTH = {"Ocak": {"Cihaz Üretim": 982.06, "Kalite Birimi": 2
 const ONLENEBILIR = ['DEVSIZ','SEBEBSIZ','ÜCRTSİZ','RAPOR','İŞ.KAZASI'];
 
 function initFilters() {
-  const depts = [...new Set(RAW.map(r=>r.department))].sort();
-  const alts  = [...new Set(RAW.map(r=>r.alt_department).filter(Boolean))].sort();
+  const allDepts = [...RAW.map(r=>r.department), ...NORMAL_DATA.map(r=>r.department)];
+  const allAlts  = [...RAW.map(r=>r.alt_department), ...NORMAL_DATA.map(r=>r.alt_department)];
+  const depts = [...new Set(allDepts.filter(Boolean))].sort();
+  const alts  = [...new Set(allAlts.filter(Boolean))].sort();
   const stats = [...new Set(RAW.map(r=>r.status))].sort();
   const setOpts = (id, arr) => {
     const el = document.getElementById(id);
@@ -1035,8 +1037,14 @@ async function loadFromSupabase() {
     let allRows = [], from = 0;
     const BATCH = 1000;
     while (true) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?select=*&order=date.asc&offset=${from}&limit=${BATCH}`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?select=*&order=date.asc`, {
+        headers: { 
+          'apikey': SUPABASE_KEY, 
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Range': `${from}-${from + BATCH - 1}`,
+          'Range-Unit': 'items',
+          'Prefer': 'count=none'
+        }
       });
       if (!res.ok) throw new Error(await res.text());
       const batch = await res.json();
