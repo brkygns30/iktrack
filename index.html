@@ -371,29 +371,22 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 <div id="login-screen">
   <div class="login-card">
-    <!-- Logo -->
-    <div style="text-align:center;margin-bottom:32px;">
-      <div style="width:56px;height:56px;background:linear-gradient(135deg,#3b6fff,#6366f1);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:800;font-family:'DM Mono',monospace;margin:0 auto 14px;">İK</div>
-      <div style="font-size:20px;font-weight:800;color:#111827;letter-spacing:-0.5px;">İK<span style="color:#3b6fff">Track</span></div>
-      <div style="font-size:11px;color:#9ca3af;font-family:'DM Mono',monospace;margin-top:4px;letter-spacing:0.5px;">DEVAMSIZLIK &amp; ÜRETİM PANELİ</div>
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="width:52px;height:52px;background:#3b6fff;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:700;font-family:'DM Mono',monospace;margin:0 auto 14px;">İK</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text);">İK<span style="color:#3b6fff">Track</span></div>
+      <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:3px;letter-spacing:0.5px;">Devamsızlık &amp; Üretim Paneli</div>
     </div>
 
-    <!-- Divider -->
-    <div style="height:1px;background:linear-gradient(90deg,transparent,#e5e7eb,transparent);margin-bottom:28px;"></div>
-
-    <!-- Form -->
-    <div style="font-size:11px;color:#9ca3af;font-family:'DM Mono',monospace;letter-spacing:0.8px;margin-bottom:6px;">E-POSTA</div>
-    <input class="login-input" type="email" id="login-email" placeholder="ornek@sirket.com" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
-
-    <div style="font-size:11px;color:#9ca3af;font-family:'DM Mono',monospace;letter-spacing:0.8px;margin-bottom:6px;margin-top:4px;">ŞİFRE</div>
-    <input class="login-input" type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-
-    <button class="login-btn" id="login-btn" onclick="doLogin()">Giriş Yap →</button>
-    <div class="login-error" id="login-error"></div>
-
-    <div style="margin-top:24px;padding-top:20px;border-top:1px solid #f3f4f6;text-align:center;">
-      <span style="font-size:11px;color:#c4cad8;font-family:'DM Mono',monospace;">Erişim için yöneticinize başvurun</span>
+    <div class="login-form-box">
+      <label class="login-label">E-POSTA</label>
+      <input class="login-input" type="email" id="login-email" placeholder="ornek@sirket.com" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+      <label class="login-label">ŞİFRE</label>
+      <input class="login-input" type="password" id="login-pass" placeholder="••••••••" style="margin-bottom:20px;" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="login-btn" id="login-btn" onclick="doLogin()">Giriş Yap</button>
+      <div class="login-error" id="login-error"></div>
     </div>
+
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:16px;font-family:'DM Mono',monospace;">Erişim için yöneticinize başvurun</p>
   </div>
 </div>
 
@@ -739,53 +732,6 @@ function applyFilters() {
 }
 
 
-
-
-
-
-
-
-// İşten ayrılanlar — sayfa yüklenince Supabase'den çekilir
-const leftEmployees = new Set();
-
-async function loadLeftEmployees() {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=eq.EMPLOYEE_LEFT&select=sicil`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      data.forEach(r => leftEmployees.add(r.sicil));
-    }
-  } catch(e) { console.error('loadLeftEmployees error:', e); }
-}
-
-async function toggleLeft(sicil, name) {
-  const isLeft = leftEmployees.has(sicil);
-  try {
-    if (isLeft) {
-      // Aktife al — hr_data'dan sil
-      await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=eq.EMPLOYEE_LEFT&sicil=eq.${encodeURIComponent(sicil)}`, {
-        method: 'DELETE',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
-      });
-      leftEmployees.delete(sicil);
-    } else {
-      // İşten ayrıldı — hr_data'ya ekle
-      await fetch(`${SUPABASE_URL}/rest/v1/hr_data`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json', 'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ sicil, name, department: '', alt_department: '', date: new Date().toISOString().slice(0,10), status: 'EMPLOYEE_LEFT', hours: 0 })
-      });
-      leftEmployees.add(sicil);
-    }
-  } catch(e) { console.error('Status güncellenemedi:', e); }
-}
-
-
 const TR_MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
 
@@ -1083,6 +1029,57 @@ async function doLogin() {
   showDashboard();
 }
 
+
+async function loadFromSupabase() {
+  try {
+    let allRows = [], from = 0;
+    const BATCH = 1000;
+    while (true) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?select=*&order=date.asc&offset=${from}&limit=${BATCH}`, {
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const batch = await res.json();
+      allRows = allRows.concat(batch);
+      if (batch.length < BATCH) break;
+      from += BATCH;
+    }
+
+    if (allRows.length === 0) return false;
+
+    RAW.length = 0;
+    NORMAL_DATA.length = 0;
+    FM_DATA.length = 0;
+    Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
+    Object.keys(PERSON_FM).forEach(k => delete PERSON_FM[k]);
+    Object.keys(PERSON_INFO).forEach(k => delete PERSON_INFO[k]);
+    Object.keys(PERSON_LAST).forEach(k => delete PERSON_LAST[k]);
+
+    allRows.forEach(r => {
+      if (r.status === 'NORMAL_HOURS') {
+        NORMAL_DATA.push({ department: r.department, alt_department: r.alt_department, date: r.date, normal_hours: r.hours });
+      } else if (r.status === 'FM_HOURS') {
+        FM_DATA.push({ department: r.department, alt_department: r.alt_department, date: r.date, fm_hours: r.hours });
+      } else if (r.status === 'PERSON_NORMAL') {
+        PERSON_NORMAL[r.name] = r.hours;
+      } else if (r.status === 'PERSON_FM') {
+        PERSON_FM[r.name] = r.hours;
+      } else if (r.status === 'PERSON_LAST') {
+        PERSON_LAST[r.name] = r.date;
+      } else {
+        RAW.push({ sicil: r.sicil||'', name: r.name||'', department: r.department||'', alt_department: r.alt_department||'—', date: r.date||'', status: r.status||'', days: r.hours||0 });
+        if (!PERSON_INFO[r.name]) PERSON_INFO[r.name] = { sicil: r.sicil||'', department: r.department||'', alt_department: r.alt_department||'', normal_hours: 0 };
+      }
+    });
+
+    console.log(`✅ ${allRows.length} kayıt yüklendi`);
+    return true;
+  } catch(err) {
+    console.error('loadFromSupabase error:', err);
+    return false;
+  }
+}
+
 function showDashboard() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('main-content').style.display = 'block';
@@ -1095,7 +1092,6 @@ function showDashboard() {
   // Supabase'den veri çek, sonra dashboard'u başlat
   loadFromSupabase().then(() => {
     initFilters(); applyFilters(); computeAutoLeft(); computeBudget(); computeFmBudget(); computeProductionKPI();
-    loadLeftEmployees().then(() => {});
   });
   (function(){
     const now = new Date();
@@ -1535,7 +1531,7 @@ function renderTable() {
   const clr = (v) => v > 3 ? '#dc2626' : '#059669';
 
   document.getElementById('tbody').innerHTML = data.map(p => {
-    const isLeft = autoLeftEmployees.has(p.name) || leftEmployees.has(p.sicil||'');
+    const isLeft = autoLeftEmployees.has(p.name);
     const rowStyle = isLeft ? 'background:#fffbeb;' : '';
     const nameStyle = isLeft ? 'font-weight:600;color:#92400e;' : 'font-weight:600;color:var(--text);';
     const leftBadge = isLeft ? ' <span style="font-size:9px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:4px;padding:1px 5px;margin-left:4px;">işten ayrıldı</span>' : '';
@@ -1625,6 +1621,7 @@ function handleExcelUpload(event) {
       const newNormal  = [];
       const newFM      = [];
       const newPersonNormal = {};
+      const newPersonFm     = {};
       const newPersonInfo   = {};
       const newPersonLast   = {};
 
@@ -1657,6 +1654,7 @@ function handleExcelUpload(event) {
         // Fazla mesai
         const fmHours = FM_COLS.reduce((s,c) => s + toFloat(row[col(c)]), 0);
         if (fmHours > 0) newFM.push({department:dept, alt_department:alt, date, fm_hours:fmHours});
+        newPersonFm[name] = (newPersonFm[name] || 0) + fmHours;
 
         // Person info (tüm kişiler — devamsızlık kaydı olmayanlar dahil)
         if (!newPersonInfo[name]) newPersonInfo[name] = {sicil: sicil.split('.')[0], department:dept, alt_department:alt, normal_hours:0};
@@ -1681,6 +1679,7 @@ function handleExcelUpload(event) {
       Object.keys(PERSON_LAST).forEach(k => delete PERSON_LAST[k]);
       Object.assign(PERSON_LAST, newPersonLast);
       Object.keys(PERSON_FM).forEach(k => delete PERSON_FM[k]);
+      Object.assign(PERSON_FM, newPersonFm);
 
       // Re-init filters and render
       const fDept = document.getElementById('f-dept');
@@ -1749,6 +1748,12 @@ async function saveToSupabase(records) {
     Object.entries(PERSON_FM).forEach(([name, hours]) => allRows.push({
       sicil: '', name, department: '', alt_department: '',
       date: '2000-01-01', status: 'PERSON_FM', hours
+    }));
+
+    // 5. Kişi son aktif tarih (işten ayrılan tespiti için)
+    Object.entries(PERSON_LAST).forEach(([name, lastDate]) => allRows.push({
+      sicil: '', name, department: '', alt_department: '',
+      date: lastDate, status: 'PERSON_LAST', hours: 0
     }));
 
     // Batch'ler halinde yükle
