@@ -750,43 +750,38 @@ const leftEmployees = new Set();
 
 async function loadLeftEmployees() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/employee_status?status=eq.left&select=sicil`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=eq.EMPLOYEE_LEFT&select=sicil`, {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     if (res.ok) {
       const data = await res.json();
       data.forEach(r => leftEmployees.add(r.sicil));
     }
-  } catch(e) { /* Supabase bağlantısı bu ortamda çalışmıyor — dosyayı tarayıcıda açın */ }
+  } catch(e) { console.error('loadLeftEmployees error:', e); }
 }
 
 async function toggleLeft(sicil, name) {
   const isLeft = leftEmployees.has(sicil);
   try {
     if (isLeft) {
-      // Aktife al
-      await fetch(`${SUPABASE_URL}/rest/v1/employee_status?sicil=eq.${sicil}`, {
-        method: 'PATCH',
+      // Aktife al — hr_data'dan sil
+      await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=eq.EMPLOYEE_LEFT&sicil=eq.${encodeURIComponent(sicil)}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
+      });
+      leftEmployees.delete(sicil);
+    } else {
+      // İşten ayrıldı — hr_data'ya ekle
+      await fetch(`${SUPABASE_URL}/rest/v1/hr_data`, {
+        method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Content-Type': 'application/json', 'Prefer': 'return=minimal'
         },
-        body: JSON.stringify({ status: 'active', updated_at: new Date().toISOString() })
-      });
-      leftEmployees.delete(sicil);
-    } else {
-      // İşten ayrıldı
-      await fetch(`${SUPABASE_URL}/rest/v1/employee_status`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal'
-        },
-        body: JSON.stringify({ sicil, name, status: 'left', updated_at: new Date().toISOString() })
+        body: JSON.stringify({ sicil, name, department: '', alt_department: '', date: new Date().toISOString().slice(0,10), status: 'EMPLOYEE_LEFT', hours: 0 })
       });
       leftEmployees.add(sicil);
     }
-    // güncelle
   } catch(e) { console.error('Status güncellenemedi:', e); }
 }
 
@@ -1171,93 +1166,9 @@ async function deleteUser(id, email) {
 }
 
 
-async function fetchAll(table) {
-  const nameOrderTables = ['person_normal', 'person_fm', 'user_roles', 'employee_status'];
-  const orderCol = nameOrderTables.includes(table) ? 'name' : 'date';
-  let all = [], from = 0;
-  const BATCH = 1000;
-  while (true) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&order=${orderCol}.asc&offset=${from}&limit=${BATCH}`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const batch = await res.json();
-    all = all.concat(batch);
-    if (batch.length < BATCH) break;
-    from += BATCH;
-  }
-  return all;
-}
 
-async function loadFromSupabase() {
-  const statusEl = document.getElementById('upload-status');
-  
-  try {
-    // Paralel çek
-    const [absenceRecords, normalRecords, fmRecords, personNormalRecords, personFmRecords] = await Promise.all([
-      fetchAll('absence_records'),
-      fetchAll('normal_records'),
-      fetchAll('fm_records'),
-      fetchAll('person_normal'),
-      fetchAll('person_fm')
-    ]);
 
-    if (absenceRecords.length === 0 && normalRecords.length === 0) {
-      
-      return false;
-    }
 
-    // RAW güncelle
-    RAW.length = 0;
-    absenceRecords.forEach(r => RAW.push({
-      sicil: r.sicil || '',
-      name: r.name || '',
-      department: r.department || '',
-      alt_department: r.alt_department || '—',
-      date: r.date || '',
-      status: r.status || '',
-      days: parseFloat(r.days) || 0
-    }));
-
-    // NORMAL_DATA güncelle
-    NORMAL_DATA.length = 0;
-    normalRecords.forEach(r => NORMAL_DATA.push({
-      department: r.department || '',
-      alt_department: r.alt_department || '',
-      date: r.date || '',
-      normal_hours: parseFloat(r.normal_hours) || 0
-    }));
-
-    // FM_DATA güncelle
-    FM_DATA.length = 0;
-    fmRecords.forEach(r => FM_DATA.push({
-      department: r.department || '',
-      alt_department: r.alt_department || '',
-      date: r.date || '',
-      fm_hours: parseFloat(r.fm_hours) || 0
-    }));
-
-    // PERSON_INFO, PERSON_NORMAL, PERSON_FM güncelle
-    Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
-    Object.keys(PERSON_FM).forEach(k => delete PERSON_FM[k]);
-    Object.keys(PERSON_INFO).forEach(k => delete PERSON_INFO[k]);
-
-    RAW.forEach(r => {
-      if (!PERSON_INFO[r.name]) PERSON_INFO[r.name] = {sicil:r.sicil,department:r.department,alt_department:r.alt_department,normal_hours:0};
-    });
-
-    // PERSON_NORMAL ve PERSON_FM Supabase'den doldur
-    personNormalRecords.forEach(r => { PERSON_NORMAL[r.name] = parseFloat(r.normal_hours) || 0; });
-    personFmRecords.forEach(r => { PERSON_FM[r.name] = parseFloat(r.fm_hours) || 0; });
-
-    
-    return true;
-  } catch(err) {
-    
-    console.error(err);
-    return false;
-  }
-}
 
 function setThisMonth() {
   const now = new Date();
