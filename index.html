@@ -741,6 +741,7 @@ function computeFmBudget() {
   const from = document.getElementById('f-from').value;
   const to   = document.getElementById('f-to').value;
   const alt  = document.getElementById('f-alt').value;
+  const dept = document.getElementById('f-dept').value;
 
   if (!from || !to) {
     document.getElementById('k-fm-butce').textContent = '—';
@@ -763,6 +764,7 @@ function computeFmBudget() {
 
     Object.entries(monthBudget).forEach(([altKey, hours]) => {
       if (alt && altKey !== alt) return;
+      if (dept && ALT_TO_DEPT[altKey] !== dept) return;
       totalFmBudget += hours * ratio;
     });
 
