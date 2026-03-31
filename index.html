@@ -1625,10 +1625,11 @@ function handleExcelUpload(event) {
       };
       const toDate = v => {
         if (!v) return '';
-        if (v instanceof Date) return v.toISOString().slice(0,10);
+        const toLocal = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        if (v instanceof Date) return toLocal(v);
         if (typeof v === 'number') {
           const d = new Date(Math.round((v - 25569)*86400*1000));
-          return d.toISOString().slice(0,10);
+          return toLocal(d);
         }
         return String(v).slice(0,10);
       };
