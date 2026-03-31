@@ -806,7 +806,7 @@ function computeBudget() {
     // Sum budget for matching alt departments
     Object.entries(monthBudget).forEach(([altKey, hours]) => {
       if (alt && altKey !== alt) return;
-      // If dept filter — skip non-matching (rough check)
+      if (dept && ALT_TO_DEPT[altKey] !== dept) return;
       totalBudget += hours * ratio;
     });
 
@@ -817,6 +817,17 @@ function computeBudget() {
   document.getElementById('butce-sub').textContent = 'bütçelenmiş saat';
 }
 
+const ALT_TO_DEPT = {
+  'Radyatör Üretim': 'Üretim ve Bakım Müdürlüğü',
+  'Bakım': 'Üretim ve Bakım Müdürlüğü',
+  'Lojistik Birimi': 'Tedarik Zinciri Müdürlüğü',
+  'Kalite Birimi': 'Arge ve Kalite Müdürlüğü',
+  'İnsan Kaynakları': 'İnsan Kaynaklari Müdürlüğü',
+  'Cihaz Üretim': 'Üretim ve Bakım Müdürlüğü',
+  'Eşanjör Üretim': 'Üretim ve Bakım Müdürlüğü',
+  'SSH': 'Ssh',
+  'Arge Birimi': 'Arge ve Kalite Müdürlüğü'
+};
 const TR_MONTHS_LIST = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
 // Production data store
@@ -1718,8 +1729,17 @@ async function saveToSupabase(records) {
   try {
     const BATCH = 1000;
 
-    // Önce tüm verileri sil
-    await fetch(`${SUPABASE_URL}/rest/v1/hr_data?date=gte.2000-01-01`, {
+    // Sadece yüklenen Excel'deki aylara ait verileri sil
+    const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))];
+    console.log('Yüklenen aylar:', uploadedMonths);
+    for (const ym of uploadedMonths) {
+      await fetch(`${SUPABASE_URL}/rest/v1/hr_data?date=gte.${ym}-01&date=lte.${ym}-31`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
+      });
+    }
+    // PERSON_NORMAL, PERSON_FM, PERSON_LAST, EMPLOYEE_LEFT her zaman tümünü yenile
+    await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=in.(PERSON_NORMAL,PERSON_FM,PERSON_LAST,NORMAL_HOURS,FM_HOURS)&date=gte.2000-01-01`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
     });
