@@ -1747,11 +1747,13 @@ async function saveToSupabase(records) {
     const BATCH = 1000;
 
     // Sadece yüklenen Excel'deki aylara ait verileri sil
-    const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))];
-    console.log('Yüklenen aylar:', uploadedMonths);
+
     // Yüklenen aylara ait tüm satırları sil (devamsızlık + NORMAL_HOURS + FM_HOURS)
     for (const ym of uploadedMonths) {
-      await fetch(`${SUPABASE_URL}/rest/v1/hr_data?date=gte.${ym}-01&date=lte.${ym}-31`, {
+      const [yr, mo] = ym.split('-').map(Number);
+      const lastDay = new Date(yr, mo, 0).getDate();
+      const lastDate = `${ym}-${String(lastDay).padStart(2,'0')}`;
+      await fetch(`${SUPABASE_URL}/rest/v1/hr_data?date=gte.${ym}-01&date=lte.${lastDate}`, {
         method: 'DELETE',
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
       });
@@ -1763,8 +1765,11 @@ async function saveToSupabase(records) {
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
     });
     // PERSON_LAST — yüklenen aylar aralığındaki tarihleri sil
-    const minMonth = uploadedMonths.sort()[0] + '-01';
-    const maxMonth = uploadedMonths.sort().slice(-1)[0] + '-31';
+    const sortedMonths = uploadedMonths.sort();
+    const minMonth = sortedMonths[0] + '-01';
+    const [maxYr, maxMo] = sortedMonths.slice(-1)[0].split('-').map(Number);
+    const maxLastDay = new Date(maxYr, maxMo, 0).getDate();
+    const maxMonth = sortedMonths.slice(-1)[0] + '-' + String(maxLastDay).padStart(2,'0');
     await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=eq.PERSON_LAST&date=gte.${minMonth}&date=lte.${maxMonth}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
@@ -1795,7 +1800,8 @@ async function saveToSupabase(records) {
     }));
 
     // 4. Kişi bazlı normal ve FM — ay bazlı (yüklenen Excel'in ilk ayını tag olarak kullan)
-    const personMonthTag = uploadedMonths.sort()[0] + '-01';
+    const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
+    const personMonthTag = uploadedMonths[0] + '-01';
     Object.entries(PERSON_NORMAL).forEach(([name, hours]) => allRows.push({
       sicil: '', name, department: '', alt_department: '',
       date: personMonthTag, status: 'PERSON_NORMAL', hours
@@ -1821,7 +1827,7 @@ async function saveToSupabase(records) {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
         },
         body: JSON.stringify(allRows.slice(i, i + BATCH))
       });
