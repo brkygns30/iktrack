@@ -1689,18 +1689,28 @@ function handleExcelUpload(event) {
         }
       }
 
-      // Update global data
-      RAW.length = 0; newRaw.forEach(r => RAW.push(r));
-      NORMAL_DATA.length = 0; newNormal.forEach(r => NORMAL_DATA.push(r));
-      FM_DATA.length = 0; newFM.forEach(r => FM_DATA.push(r));
-      Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
-      Object.assign(PERSON_NORMAL, newPersonNormal);
-      Object.keys(PERSON_INFO).forEach(k => delete PERSON_INFO[k]);
+      // Yüklenen ayları tespit et
+      const newMonths = new Set(newRaw.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean));
+      newNormal.forEach(r => { if(r.date) newMonths.add(r.date.slice(0,7)); });
+
+      // Sadece yüklenen aylara ait bellekteki verileri temizle, diğerlerini koru
+      const filterOutMonths = r => !newMonths.has((r.date||'').slice(0,7));
+      const keepRaw = RAW.filter(filterOutMonths);
+      RAW.length = 0; [...keepRaw, ...newRaw].forEach(r => RAW.push(r));
+
+      const keepNormal = NORMAL_DATA.filter(filterOutMonths);
+      NORMAL_DATA.length = 0; [...keepNormal, ...newNormal].forEach(r => NORMAL_DATA.push(r));
+
+      const keepFM = FM_DATA.filter(filterOutMonths);
+      FM_DATA.length = 0; [...keepFM, ...newFM].forEach(r => FM_DATA.push(r));
+
+      // PERSON_* — yeni verilerle birleştir (toplam)
+      Object.keys(newPersonNormal).forEach(k => { PERSON_NORMAL[k] = (PERSON_NORMAL[k]||0) + newPersonNormal[k]; });
+      Object.keys(newPersonFm).forEach(k => { PERSON_FM[k] = (PERSON_FM[k]||0) + newPersonFm[k]; });
       Object.assign(PERSON_INFO, newPersonInfo);
-      Object.keys(PERSON_LAST).forEach(k => delete PERSON_LAST[k]);
-      Object.assign(PERSON_LAST, newPersonLast);
-      Object.keys(PERSON_FM).forEach(k => delete PERSON_FM[k]);
-      Object.assign(PERSON_FM, newPersonFm);
+      Object.keys(newPersonLast).forEach(k => {
+        if (!PERSON_LAST[k] || newPersonLast[k] > PERSON_LAST[k]) PERSON_LAST[k] = newPersonLast[k];
+      });
 
       // Re-init filters and render
       const fDept = document.getElementById('f-dept');
