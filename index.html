@@ -361,9 +361,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
   </button>
   <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(event)">
   <span id="upload-status" style="display:none;"></span>
-  <button id="user-mgmt-btn" onclick="openUserMgmt()" style="display:none;margin-left:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;align-items:center;gap:6px;">
-    👥 Kullanıcılar
-  </button>
+  
   <button id="logout-btn" onclick="doLogout()" style="display:none;margin-left:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;">
     Çıkış
   </button>
@@ -399,26 +397,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
   </div>
 </div>
 
-<div id="user-mgmt-modal" style="display:none;">
-  <div class="user-mgmt-card">
-    <button onclick="closeUserMgmt()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;">✕</button>
-    <h2>👥 Kullanıcı Yönetimi</h2>
-    <table class="user-table">
-      <thead><tr><th>E-posta</th><th>Rol</th><th>Eklenme</th><th></th></tr></thead>
-      <tbody id="user-list"></tbody>
-    </table>
-    <div class="user-add-form">
-      <input type="email" id="new-user-email" placeholder="E-posta">
-      <input type="password" id="new-user-pass" placeholder="Şifre (min 6 karakter)">
-      <select id="new-user-role">
-        <option value="user">Kullanıcı</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button onclick="addUser()">+ Ekle</button>
-    </div>
-    <div id="user-mgmt-msg" style="font-size:11px;color:#059669;margin-top:8px;font-family:'DM Mono',monospace;"></div>
-  </div>
-</div>
+
 
 <main id="main-content" style="display:none">
   <div class="ptitle">
@@ -1117,9 +1096,7 @@ function showDashboard() {
   document.getElementById('production-btn').style.display = 'flex';
   document.getElementById('upload-status').style.display = 'inline';
   document.getElementById('last-update').style.display = 'inline';
-  if (currentRole === 'admin') {
-    document.getElementById('user-mgmt-btn').style.display = 'flex';
-  }
+
   // Supabase'den veri çek, sonra dashboard'u başlat
   loadFromSupabase().then(() => {
     initFilters(); applyFilters(); computeAutoLeft(); computeBudget(); computeFmBudget(); computeProductionKPI();
@@ -1139,7 +1116,6 @@ async function doLogout() {
   document.getElementById('main-content').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('logout-btn').style.display = 'none';
-  document.getElementById('user-mgmt-btn').style.display = 'none';
   document.getElementById('excel-upload-btn').style.display = 'none';
   document.getElementById('production-btn').style.display = 'none';
   document.getElementById('upload-status').style.display = 'none';
@@ -1149,11 +1125,7 @@ async function doLogout() {
   document.getElementById('login-error').textContent = '';
 }
 
-// USER MANAGEMENT
-async function openUserMgmt() {
-  document.getElementById('user-mgmt-modal').style.display = 'block';
-  await loadUsers();
-}
+
 function closeUserMgmt() {
   document.getElementById('user-mgmt-modal').style.display = 'none';
 }
@@ -1696,7 +1668,7 @@ function handleExcelUpload(event) {
   
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const data = new Uint8Array(e.target.result);
       const wb   = XLSX.read(data, {type:'array', cellDates:true});
@@ -1802,10 +1774,11 @@ function handleExcelUpload(event) {
 
       const uniqueEmp = new Set(newRaw.map(r=>r.sicil).filter(Boolean)).size || new Set(newRaw.map(r=>r.name)).size;
       document.getElementById('k-emp').textContent = uniqueEmp;
-      
+
+      // Supabase'e kaydet
+      await saveToSupabase(newRaw);
 
     } catch(err) {
-      
       console.error(err);
     }
   };
