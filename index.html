@@ -1622,7 +1622,7 @@ function handleExcelUpload(event) {
       };
 
       const ABSENCE_COLS = ["DEVSIZ", "SEBEBSIZ", "YILLIK", "\u00dcCRTS\u0130Z", "\u00d6L\u00dcM", "D\u0130\u011eER \u00dcCRL\u0130", "\u00dcCRL\u0130 1/2", "RAPOR", "\u0130\u015e.KAZASI", "SEND\u0130KA", "PANDEM\u0130", "1/2 \u0130Z\u0130N 9.0", "1/2 \u0130Z\u0130N 7.5", "KISM\u0130 \u0130ST\u0130HDAM", "O K U L", "\u00dcCRS\u0130Z 1/2", "BABALIK", "EVLENME", "D.\u00d6NCES\u0130", "D.SONRASI", "\u00dcCRL.RAPOR", "V\u0130Z\u0130TE", "S\u00dcT \u0130ZN\u0130", "ENGELL\u0130 \u00c7OCUK", "KS.\u00c7ALI\u015eMA", "FM.SONRASI"];
-      const NORMAL_COLS2 = ["NORMAL", "CMTES\u0130", "H.TAT\u0130L", "G.TAT\u0130L", "G\u00d6REVL\u0130", "UZAKTAN \u00c7ALI\u015eMA"];
+      const NORMAL_COLS2 = ["NORMAL", "H.TATİL", "G.TATİL", "GÖREVLİ", "UZAKTAN ÇALIŞMA"];
       const FM_COLS      = ["FM1%50", "FM%75", "FM2%100", "FM3%100"];
 
       newRaw     = [];
@@ -1765,7 +1765,9 @@ async function saveToSupabase(records) {
     }));
 
     // Batch'ler halinde yükle
+    console.log('Toplam yazılacak:', allRows.length, 'satır');
     for (let i = 0; i < allRows.length; i += BATCH) {
+      console.log(`Batch ${i}-${Math.min(i+BATCH,allRows.length)} yazılıyor...`);
       const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data`, {
         method: 'POST',
         headers: {
@@ -1776,7 +1778,7 @@ async function saveToSupabase(records) {
         },
         body: JSON.stringify(allRows.slice(i, i + BATCH))
       });
-      if (!res.ok) throw new Error('Kayıt hatası: ' + await res.text());
+      if (!res.ok) { const errText = await res.text(); console.error(`Batch ${i}-${i+BATCH} hatası:`, errText); throw new Error('Kayıt hatası: ' + errText); }
     }
 
     console.log(`✅ ${allRows.length} kayıt Supabase'e yazıldı`);
