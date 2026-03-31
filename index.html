@@ -1766,9 +1766,9 @@ function handleExcelUpload(event) {
       const fDept = document.getElementById('f-dept');
       const fAlt  = document.getElementById('f-alt');
       const detailGroup = document.getElementById('detail-group');
-      fDept.innerHTML = '<option value="">Tümü</option>';
-      fAlt.innerHTML  = '<option value="">Tümü</option>';
-      detailGroup.innerHTML = '';
+      if(fDept) fDept.innerHTML = '<option value="">Tümü</option>';
+      if(fAlt) fAlt.innerHTML  = '<option value="">Tümü</option>';
+      if(detailGroup) detailGroup.innerHTML = '';
       initFilters();
       applyFilters();
 
