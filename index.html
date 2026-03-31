@@ -351,38 +351,55 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     
     <span class="hbadge" id="today-date"></span>
   </div>
-  <label for="excel-upload" title="Excel dosyası yükle" style="background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px;transition:opacity .2s;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
+  <label id="excel-upload-btn" for="excel-upload" title="Excel dosyası yükle" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;align-items:center;gap:6px;transition:opacity .2s;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
     Excel Yükle
   </label>
-  <button onclick="openProductionModal()" title="Üretim verisi gir" style="margin-left:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px;transition:opacity .2s;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
+  <button id="production-btn" onclick="openProductionModal()" title="Üretim verisi gir" style="display:none;margin-left:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;align-items:center;gap:6px;transition:opacity .2s;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">
     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
     Üretim Verisi
   </button>
   <input type="file" id="excel-upload" accept=".xlsx,.xls" style="display:none" onchange="handleExcelUpload(event)">
-  <span id="upload-status" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-left:8px"></span>
+  <span id="upload-status" style="display:none;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-left:8px"></span>
   <button id="user-mgmt-btn" onclick="openUserMgmt()" style="display:none;margin-left:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;align-items:center;gap:6px;">
     👥 Kullanıcılar
   </button>
   <button id="logout-btn" onclick="doLogout()" style="display:none;margin-left:8px;background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;color:#6b7280;cursor:pointer;">
     Çıkış
   </button>
-  <span id="last-update" style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-left:12px;padding-left:12px;border-left:1px solid var(--border)">🕒 Son güncelleme: <strong id="last-update-val">—</strong></span>
+  <span id="last-update" style="display:none;font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;margin-left:12px;padding-left:12px;border-left:1px solid var(--border)">🕒 Son güncelleme: <strong id="last-update-val">—</strong></span>
 </header>
 
 
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">📊 İK Takip</div>
-    <div class="login-sub">Devamsızlık &amp; Üretim Paneli</div>
-    <input class="login-input" type="email" id="login-email" placeholder="E-posta adresi" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
-    <input class="login-input" type="password" id="login-pass" placeholder="Şifre" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" id="login-btn" onclick="doLogin()">Giriş Yap</button>
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="width:56px;height:56px;background:linear-gradient(135deg,#3b6fff,#6366f1);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;font-weight:800;font-family:'DM Mono',monospace;margin:0 auto 14px;">İK</div>
+      <div style="font-size:20px;font-weight:800;color:#111827;letter-spacing:-0.5px;">İK<span style="color:#3b6fff">Track</span></div>
+      <div style="font-size:11px;color:#9ca3af;font-family:'DM Mono',monospace;margin-top:4px;letter-spacing:0.5px;">DEVAMSIZLIK &amp; ÜRETİM PANELİ</div>
+    </div>
+
+    <!-- Divider -->
+    <div style="height:1px;background:linear-gradient(90deg,transparent,#e5e7eb,transparent);margin-bottom:28px;"></div>
+
+    <!-- Form -->
+    <div style="font-size:11px;color:#9ca3af;font-family:'DM Mono',monospace;letter-spacing:0.8px;margin-bottom:6px;">E-POSTA</div>
+    <input class="login-input" type="email" id="login-email" placeholder="ornek@sirket.com" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+
+    <div style="font-size:11px;color:#9ca3af;font-family:'DM Mono',monospace;letter-spacing:0.8px;margin-bottom:6px;margin-top:4px;">ŞİFRE</div>
+    <input class="login-input" type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Giriş Yap →</button>
     <div class="login-error" id="login-error"></div>
+
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid #f3f4f6;text-align:center;">
+      <span style="font-size:11px;color:#c4cad8;font-family:'DM Mono',monospace;">Erişim için yöneticinize başvurun</span>
+    </div>
   </div>
 </div>
 
-<div id="user-mgmt-modal">
+<div id="user-mgmt-modal" style="display:none;">
   <div class="user-mgmt-card">
     <button onclick="closeUserMgmt()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;">✕</button>
     <h2>👥 Kullanıcı Yönetimi</h2>
@@ -1096,6 +1113,10 @@ function showDashboard() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('main-content').style.display = 'block';
   document.getElementById('logout-btn').style.display = 'flex';
+  document.getElementById('excel-upload-btn').style.display = 'flex';
+  document.getElementById('production-btn').style.display = 'flex';
+  document.getElementById('upload-status').style.display = 'inline';
+  document.getElementById('last-update').style.display = 'inline';
   if (currentRole === 'admin') {
     document.getElementById('user-mgmt-btn').style.display = 'flex';
   }
@@ -1119,6 +1140,10 @@ async function doLogout() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('logout-btn').style.display = 'none';
   document.getElementById('user-mgmt-btn').style.display = 'none';
+  document.getElementById('excel-upload-btn').style.display = 'none';
+  document.getElementById('production-btn').style.display = 'none';
+  document.getElementById('upload-status').style.display = 'none';
+  document.getElementById('last-update').style.display = 'none';
   document.getElementById('login-email').value = '';
   document.getElementById('login-pass').value = '';
   document.getElementById('login-error').textContent = '';
@@ -1148,6 +1173,8 @@ async function loadUsers() {
 }
 
 async function addUser() {
+  // Sadece admin ekleyebilir
+  if (currentRole !== 'admin') { alert('Yetkiniz yok.'); return; }
   const email = document.getElementById('new-user-email').value.trim();
   const pass  = document.getElementById('new-user-pass').value;
   const role  = document.getElementById('new-user-role').value;
@@ -1155,13 +1182,8 @@ async function addUser() {
   if (!email || !pass) { msg.style.color='#dc2626'; msg.textContent='E-posta ve şifre gerekli.'; return; }
   if (pass.length < 6) { msg.style.color='#dc2626'; msg.textContent='Şifre en az 6 karakter olmalı.'; return; }
   msg.style.color='#9ca3af'; msg.textContent='Ekleniyor...';
-
-  // Supabase Admin API gerektirir — service_role key ile çalışır
-  // Geçici çözüm: signUp ile oluştur
   const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
   if (error) { msg.style.color='#dc2626'; msg.textContent='Hata: '+error.message; return; }
-
-  // user_roles tablosuna ekle
   await supabaseClient.from('user_roles').upsert({ id: data.user.id, email, role });
   msg.style.color='#059669'; msg.textContent='✓ Kullanıcı eklendi.';
   document.getElementById('new-user-email').value = '';
@@ -1177,33 +1199,41 @@ async function deleteUser(id, email) {
 }
 
 
+async function fetchAll(table) {
+  let all = [], from = 0;
+  const BATCH = 1000;
+  while (true) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&order=date.asc&offset=${from}&limit=${BATCH}`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const batch = await res.json();
+    all = all.concat(batch);
+    if (batch.length < BATCH) break;
+    from += BATCH;
+  }
+  return all;
+}
+
 async function loadFromSupabase() {
   const statusEl = document.getElementById('upload-status');
   statusEl.textContent = '⏳ Veriler yükleniyor...';
   try {
-    // Tüm kayıtları çek (sayfalı)
-    let allRecords = [];
-    let from = 0;
-    const BATCH = 1000;
-    while (true) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/absence_records?select=*&order=date.asc&offset=${from}&limit=${BATCH}`, {
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const batch = await res.json();
-      allRecords = allRecords.concat(batch);
-      if (batch.length < BATCH) break;
-      from += BATCH;
-    }
+    // Paralel çek
+    const [absenceRecords, normalRecords, fmRecords] = await Promise.all([
+      fetchAll('absence_records'),
+      fetchAll('normal_records'),
+      fetchAll('fm_records')
+    ]);
 
-    if (allRecords.length === 0) {
+    if (absenceRecords.length === 0 && normalRecords.length === 0) {
       statusEl.textContent = '⚠️ Veritabanında kayıt yok — Excel yükleyin';
       return false;
     }
 
     // RAW güncelle
     RAW.length = 0;
-    allRecords.forEach(r => RAW.push({
+    absenceRecords.forEach(r => RAW.push({
       sicil: r.sicil || '',
       name: r.name || '',
       department: r.department || '',
@@ -1213,14 +1243,38 @@ async function loadFromSupabase() {
       days: parseFloat(r.days) || 0
     }));
 
+    // NORMAL_DATA güncelle
+    NORMAL_DATA.length = 0;
+    normalRecords.forEach(r => NORMAL_DATA.push({
+      department: r.department || '',
+      alt_department: r.alt_department || '',
+      date: r.date || '',
+      normal_hours: parseFloat(r.normal_hours) || 0
+    }));
+
+    // FM_DATA güncelle
+    FM_DATA.length = 0;
+    fmRecords.forEach(r => FM_DATA.push({
+      department: r.department || '',
+      alt_department: r.alt_department || '',
+      date: r.date || '',
+      fm_hours: parseFloat(r.fm_hours) || 0
+    }));
+
     // PERSON_INFO ve PERSON_NORMAL güncelle
     Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
+    Object.keys(PERSON_FM).forEach(k => delete PERSON_FM[k]);
     Object.keys(PERSON_INFO).forEach(k => delete PERSON_INFO[k]);
+
     RAW.forEach(r => {
       if (!PERSON_INFO[r.name]) PERSON_INFO[r.name] = {sicil:r.sicil,department:r.department,alt_department:r.alt_department,normal_hours:0};
     });
+    NORMAL_DATA.forEach(r => {
+      // PERSON_NORMAL doldurmak için person bazlı toplama gerekiyor ama bu veri yok
+      // Excel yüklendiğinde zaten dolduruluyor
+    });
 
-    statusEl.textContent = `✅ ${allRecords.length} kayıt yüklendi`;
+    statusEl.textContent = `✅ ${absenceRecords.length} devamsızlık · ${normalRecords.length} normal · ${fmRecords.length} FM kaydı`;
     return true;
   } catch(err) {
     statusEl.textContent = '⚠️ Veri yüklenemedi: ' + err.message;
@@ -1764,9 +1818,9 @@ async function saveToSupabase(records) {
   statusEl.textContent = '⏳ Veritabanına kaydediliyor...';
 
   try {
-    // UPSERT — sicil + date + status kombinasyonu unique key olarak kullanılır
-    // Aynı kayıt gelirse üstüne yazar, yeni kayıt eklenir
     const BATCH = 1000;
+
+    // 1. Devamsızlık kayıtları
     for (let i = 0; i < records.length; i += BATCH) {
       const batch = records.slice(i, i + BATCH);
       const res = await fetch(`${SUPABASE_URL}/rest/v1/absence_records`, {
@@ -1779,14 +1833,50 @@ async function saveToSupabase(records) {
         },
         body: JSON.stringify(batch)
       });
-
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error('Kayıt hatası: ' + err);
-      }
+      if (!res.ok) throw new Error('Devamsızlık kayıt hatası: ' + await res.text());
     }
 
-    statusEl.textContent = `✅ ${records.length} kayıt veritabanına yazıldı`;
+    // 2. Normal çalışma kayıtları — önce sil sonra ekle
+    await fetch(`${SUPABASE_URL}/rest/v1/normal_records?id=gte.0`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    for (let i = 0; i < NORMAL_DATA.length; i += BATCH) {
+      const batch = NORMAL_DATA.slice(i, i + BATCH);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/normal_records`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(batch)
+      });
+      if (!res.ok) throw new Error('Normal kayıt hatası: ' + await res.text());
+    }
+
+    // 3. FM kayıtları — önce sil sonra ekle
+    await fetch(`${SUPABASE_URL}/rest/v1/fm_records?id=gte.0`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    for (let i = 0; i < FM_DATA.length; i += BATCH) {
+      const batch = FM_DATA.slice(i, i + BATCH);
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/fm_records`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(batch)
+      });
+      if (!res.ok) throw new Error('FM kayıt hatası: ' + await res.text());
+    }
+
+    statusEl.textContent = `✅ ${records.length} devamsızlık + ${NORMAL_DATA.length} normal + ${FM_DATA.length} FM kaydı yazıldı`;
 
   } catch(err) {
     statusEl.textContent = '⚠️ Dashboard güncellendi fakat DB hatası: ' + err.message;
