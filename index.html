@@ -1080,11 +1080,12 @@ async function loadFromSupabase() {
       } else if (r.status === 'FM_HOURS') {
         FM_DATA.push({ department: r.department, alt_department: r.alt_department, date: r.date, fm_hours: r.hours });
       } else if (r.status === 'PERSON_NORMAL') {
-        PERSON_NORMAL[r.name] = r.hours;
+        PERSON_NORMAL[r.name] = (PERSON_NORMAL[r.name] || 0) + r.hours;
       } else if (r.status === 'PERSON_FM') {
-        PERSON_FM[r.name] = r.hours;
+        PERSON_FM[r.name] = (PERSON_FM[r.name] || 0) + r.hours;
       } else if (r.status === 'PERSON_LAST') {
-        PERSON_LAST[r.name] = r.date;
+        // En güncel tarihi koru
+        if (!PERSON_LAST[r.name] || r.date > PERSON_LAST[r.name]) PERSON_LAST[r.name] = r.date;
       } else {
         RAW.push({ sicil: r.sicil||'', name: r.name||'', department: r.department||'', alt_department: r.alt_department||'—', date: r.date||'', status: r.status||'', days: r.hours||0 });
         if (!PERSON_INFO[r.name]) PERSON_INFO[r.name] = { sicil: r.sicil||'', department: r.department||'', alt_department: r.alt_department||'', normal_hours: 0 };
@@ -1732,14 +1733,23 @@ async function saveToSupabase(records) {
     // Sadece yüklenen Excel'deki aylara ait verileri sil
     const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))];
     console.log('Yüklenen aylar:', uploadedMonths);
+    // Yüklenen aylara ait tüm satırları sil (devamsızlık + NORMAL_HOURS + FM_HOURS)
     for (const ym of uploadedMonths) {
       await fetch(`${SUPABASE_URL}/rest/v1/hr_data?date=gte.${ym}-01&date=lte.${ym}-31`, {
         method: 'DELETE',
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
       });
     }
-    // PERSON_NORMAL, PERSON_FM, PERSON_LAST, EMPLOYEE_LEFT her zaman tümünü yenile
-    await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=in.(PERSON_NORMAL,PERSON_FM,PERSON_LAST,NORMAL_HOURS,FM_HOURS)&date=gte.2000-01-01`, {
+    // PERSON_* verileri — yüklenen ayın tag'ına göre sil
+    const personMonthTagDel = uploadedMonths.sort()[0] + '-01';
+    await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=in.(PERSON_NORMAL,PERSON_FM)&date=eq.${personMonthTagDel}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
+    });
+    // PERSON_LAST — yüklenen aylar aralığındaki tarihleri sil
+    const minMonth = uploadedMonths.sort()[0] + '-01';
+    const maxMonth = uploadedMonths.sort().slice(-1)[0] + '-31';
+    await fetch(`${SUPABASE_URL}/rest/v1/hr_data?status=eq.PERSON_LAST&date=gte.${minMonth}&date=lte.${maxMonth}`, {
       method: 'DELETE',
       headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
     });
@@ -1768,17 +1778,18 @@ async function saveToSupabase(records) {
       status: 'FM_HOURS', hours: r.fm_hours
     }));
 
-    // 4. Kişi bazlı normal ve FM
+    // 4. Kişi bazlı normal ve FM — ay bazlı (yüklenen Excel'in ilk ayını tag olarak kullan)
+    const personMonthTag = uploadedMonths.sort()[0] + '-01';
     Object.entries(PERSON_NORMAL).forEach(([name, hours]) => allRows.push({
       sicil: '', name, department: '', alt_department: '',
-      date: '2000-01-01', status: 'PERSON_NORMAL', hours
+      date: personMonthTag, status: 'PERSON_NORMAL', hours
     }));
     Object.entries(PERSON_FM).forEach(([name, hours]) => allRows.push({
       sicil: '', name, department: '', alt_department: '',
-      date: '2000-01-01', status: 'PERSON_FM', hours
+      date: personMonthTag, status: 'PERSON_FM', hours
     }));
 
-    // 5. Kişi son aktif tarih (işten ayrılan tespiti için)
+    // 5. Kişi son aktif tarih
     Object.entries(PERSON_LAST).forEach(([name, lastDate]) => allRows.push({
       sicil: '', name, department: '', alt_department: '',
       date: lastDate, status: 'PERSON_LAST', hours: 0
