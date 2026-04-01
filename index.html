@@ -1529,21 +1529,42 @@ function renderTable() {
     personMap[name] = { name, sicil:info.sicil||'', department:info.department, alt_department:info.alt_department||'—', totalDays:0, onlenDays:0 };
   });
 
-  // Alt department totals and normal hours
+  // Alt department totals and normal hours — tarih filtresine göre
   const altToplam = {}, altOnlen = {}, altNormalH = {};
   filtered.forEach(r => {
     const k = r.alt_department || '—';
     altToplam[k] = (altToplam[k] || 0) + r.days;
     if (ONLENEBILIR.includes(r.status)) altOnlen[k] = (altOnlen[k] || 0) + r.days;
   });
-  NORMAL_DATA.forEach(r => {
+  NORMAL_DATA.filter(r => (!from || r.date >= from) && (!to || r.date <= to)).forEach(r => {
     const k = r.alt_department || '—';
     altNormalH[k] = (altNormalH[k] || 0) + r.normal_hours;
   });
 
+  // Kişi bazlı normal ve FM saatlerini tarih filtresine göre hesapla
+  const filteredPersonNormal = {}, filteredPersonFm = {};
+  Object.entries(window._personNormalByMonth || {}).forEach(([month, ayData]) => {
+    const monthStart = month + '-01';
+    const monthEnd   = month + '-' + new Date(month.slice(0,4), month.slice(5,7), 0).getDate().toString().padStart(2,'0');
+    if (from && monthEnd < from) return;
+    if (to   && monthStart > to) return;
+    Object.entries(ayData).forEach(([name, hours]) => {
+      filteredPersonNormal[name] = (filteredPersonNormal[name] || 0) + hours;
+    });
+  });
+  Object.entries(window._personFmByMonth || {}).forEach(([month, ayData]) => {
+    const monthStart = month + '-01';
+    const monthEnd   = month + '-' + new Date(month.slice(0,4), month.slice(5,7), 0).getDate().toString().padStart(2,'0');
+    if (from && monthEnd < from) return;
+    if (to   && monthStart > to) return;
+    Object.entries(ayData).forEach(([name, hours]) => {
+      filteredPersonFm[name] = (filteredPersonFm[name] || 0) + hours;
+    });
+  });
+
   // Add percentages
   let data = Object.values(personMap).map(p => {
-    const pNorm  = PERSON_NORMAL[p.name] || 0;
+    const pNorm  = filteredPersonNormal[p.name] || 0;
     const denom  = pNorm + p.totalDays;
     p.pctToplam  = denom > 0 ? p.totalDays / denom * 100 : 0;
     p.pctOnlen   = denom > 0 ? p.onlenDays / denom * 100 : 0;
@@ -1552,7 +1573,7 @@ function renderTable() {
     const altDenom = (altNormalH[altKey] || 0) + (altToplam[altKey] || 0);
     p.pctOfAltToplam = altDenom > 0 ? p.totalDays / altDenom * 100 : 0;
     p.pctOfAltOnlen  = altDenom > 0 ? p.onlenDays / altDenom * 100 : 0;
-    p.fmHours = PERSON_FM[p.name] || 0;
+    p.fmHours = filteredPersonFm[p.name] || 0;
     return p;
   });
 
