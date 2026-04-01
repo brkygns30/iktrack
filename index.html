@@ -1739,18 +1739,7 @@ function handleExcelUpload(event) {
         if (idx >= 0) RAW[idx] = nr; else RAW.push(nr);
       });
 
-      // NORMAL_DATA: (department, alt_department, date) bazında upsert
-      newNormal.forEach(nn => {
-        const idx = NORMAL_DATA.findIndex(r => r.department === nn.department && r.alt_department === nn.alt_department && r.date === nn.date);
-        if (idx >= 0) NORMAL_DATA[idx] = nn; else NORMAL_DATA.push(nn);
-      });
-
-      // FM_DATA: (department, alt_department, date) bazında upsert
-      newFM.forEach(nf => {
-        const idx = FM_DATA.findIndex(r => r.department === nf.department && r.alt_department === nf.alt_department && r.date === nf.date);
-        if (idx >= 0) FM_DATA[idx] = nf; else FM_DATA.push(nf);
-      });
-
+      // NORMAL_DATA ve FM_DATA bellekte değiştirilmez — Supabase'e yazılır, loadFromSupabase ile yeniden çekilir
       console.log('Bellek güncellendi → RAW:', RAW.length, '| NORMAL:', NORMAL_DATA.length, '| FM:', FM_DATA.length);
 
       // PERSON_* — ay bazlı doğru birleştirme
@@ -1802,6 +1791,9 @@ function handleExcelUpload(event) {
 
     // Supabase'e kaydet (try-catch dışında)
     await saveToSupabase(newRaw, newNormal, newFM, newPersonFmByMonth, newPersonNormalByMonth, newPersonLast);
+    // Supabase'e yazıldıktan sonra belleği yeniden çek (NORMAL_DATA ve FM_DATA güncel gelsin)
+    await loadFromSupabase();
+    initFilters(); applyFilters(); computeAutoLeft(); computeBudget(); computeFmBudget(); computeProductionKPI();
     _uploadInProgress = false;
   };
   reader.readAsArrayBuffer(file);
