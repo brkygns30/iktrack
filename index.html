@@ -1792,7 +1792,7 @@ function handleExcelUpload(event) {
     }
 
     // Supabase'e kaydet (try-catch dışında)
-    await saveToSupabase(newRaw, newNormal, newFM, newPersonFmByMonth, newPersonNormalByMonth, newPersonLast);
+    await saveToSupabase(newRaw, newNormal, newFM, newPersonNormalByMonth, newPersonFmByMonth, newPersonLast);
     // Supabase'e yazıldıktan sonra belleği yeniden çek (NORMAL_DATA ve FM_DATA güncel gelsin)
     await loadFromSupabase();
     initFilters(); applyFilters(); computeAutoLeft(); computeBudget(); computeFmBudget(); computeProductionKPI();
