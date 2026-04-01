@@ -1853,9 +1853,19 @@ async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMo
     }));
 
     if (allRows.length === 0) { console.warn('Yazılacak kayıt yok!'); return; }
-    console.log('Upsert edilecek:', allRows.length, 'satır');
 
-    for (let i = 0; i < allRows.length; i += BATCH) {
+    // Aynı batch içindeki duplicateleri temizle — son değeri koru
+    const deduped = [];
+    const seen = new Map();
+    allRows.forEach(r => {
+      const key = `${r.sicil}|${r.name}|${r.department}|${r.alt_department}|${r.date}|${r.status}`;
+      seen.set(key, r);
+    });
+    seen.forEach(r => deduped.push(r));
+    const allRowsFinal = deduped;
+    console.log('Upsert edilecek:', allRowsFinal.length, 'satır (dedupe sonrası)');
+
+    for (let i = 0; i < allRowsFinal.length; i += BATCH) {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?on_conflict=sicil,name,department,alt_department,date,status`, {
         method: 'POST',
         headers: {
@@ -1864,7 +1874,7 @@ async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMo
           'Content-Type': 'application/json',
           'Prefer': 'resolution=merge-duplicates,return=minimal'
         },
-        body: JSON.stringify(allRows.slice(i, i + BATCH))
+        body: JSON.stringify(allRowsFinal.slice(i, i + BATCH))
       });
       if (!res.ok) {
         const errText = await res.text();
@@ -1872,7 +1882,7 @@ async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMo
         throw new Error('Kayıt hatası: ' + errText);
       }
     }
-    console.log(`✅ ${allRows.length} kayıt upsert edildi`);
+    console.log(`✅ ${allRowsFinal.length} kayıt upsert edildi`);
   } catch(err) {
     console.error('Supabase error:', err);
   }
