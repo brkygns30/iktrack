@@ -1627,6 +1627,7 @@ function handleExcelUpload(event) {
   const reader = new FileReader();
   reader.onload = async function(e) {
     let newRaw = [];
+    let newNormal = [], newFM = [], newPersonFmByMonth = {}, newPersonNormalByMonth = {}, newPersonLast = {};
     try {
       // Yüklemeden önce Supabase'den güncel veriyi çek (bellek eksikse tamamla)
       await loadFromSupabase();
@@ -1728,22 +1729,27 @@ function handleExcelUpload(event) {
         }
       }
 
-      // Yüklenen ayları tespit et
-      const newMonths = new Set(newRaw.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean));
-      newNormal.forEach(r => { if(r.date) newMonths.add(r.date.slice(0,7)); });
+      // Belleği upsert mantığıyla güncelle — silme yok, sadece gelen kayıtlar eklenir/güncellenir
 
-      // Sadece yüklenen aylara ait bellekteki verileri temizle, diğerlerini koru
-      const filterOutMonths = r => !newMonths.has((r.date||'').slice(0,7));
-      const keepRaw    = RAW.filter(filterOutMonths);
-      const keepNormal = NORMAL_DATA.filter(filterOutMonths);
-      const keepFM     = FM_DATA.filter(filterOutMonths);
-      console.log('newMonths:', [...newMonths]);
-      console.log('keepRaw:', keepRaw.length, '+ newRaw:', newRaw.length);
-      console.log('keepNormal:', keepNormal.length, '+ newNormal:', newNormal.length);
-      console.log('keepFM:', keepFM.length, '+ newFM:', newFM.length);
-      RAW.length = 0;         [...keepRaw,    ...newRaw].forEach(r => RAW.push(r));
-      NORMAL_DATA.length = 0; [...keepNormal, ...newNormal].forEach(r => NORMAL_DATA.push(r));
-      FM_DATA.length = 0;     [...keepFM,     ...newFM].forEach(r => FM_DATA.push(r));
+      // RAW: (name, date, status) bazında upsert
+      newRaw.forEach(nr => {
+        const idx = RAW.findIndex(r => r.name === nr.name && r.date === nr.date && r.status === nr.status);
+        if (idx >= 0) RAW[idx] = nr; else RAW.push(nr);
+      });
+
+      // NORMAL_DATA: (department, alt_department, date) bazında upsert
+      newNormal.forEach(nn => {
+        const idx = NORMAL_DATA.findIndex(r => r.department === nn.department && r.alt_department === nn.alt_department && r.date === nn.date);
+        if (idx >= 0) NORMAL_DATA[idx] = nn; else NORMAL_DATA.push(nn);
+      });
+
+      // FM_DATA: (department, alt_department, date) bazında upsert
+      newFM.forEach(nf => {
+        const idx = FM_DATA.findIndex(r => r.department === nf.department && r.alt_department === nf.alt_department && r.date === nf.date);
+        if (idx >= 0) FM_DATA[idx] = nf; else FM_DATA.push(nf);
+      });
+
+      console.log('Bellek güncellendi → RAW:', RAW.length, '| NORMAL:', NORMAL_DATA.length, '| FM:', FM_DATA.length);
 
       // PERSON_* — ay bazlı doğru birleştirme
       // window._personFmByMonth[ay][isim] ve window._personNormalByMonth[ay][isim]
@@ -1789,51 +1795,47 @@ function handleExcelUpload(event) {
     }
 
     // Supabase'e kaydet (try-catch dışında)
-    await saveToSupabase(newRaw);
+    await saveToSupabase(newRaw, newNormal, newFM, newPersonFmByMonth, newPersonNormalByMonth, newPersonLast);
     _uploadInProgress = false;
   };
   reader.readAsArrayBuffer(file);
 }
 
 
-async function saveToSupabase(records) {
+async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMonth, newPFmByMonth, newPersonLastMap) {
   try {
     const BATCH = 1000;
-
-    // Tüm bellekteki veriyi yaz (tüm aylar)
     const allRows = [];
 
-    // 1. Devamsızlık kayıtları (tüm RAW)
-    RAW.forEach(r => allRows.push({
+    // 1. Devamsızlık kayıtları
+    (newRawRows||[]).forEach(r => allRows.push({
       sicil: r.sicil, name: r.name, department: r.department,
       alt_department: r.alt_department, date: r.date,
       status: r.status, hours: r.days
     }));
 
-    // 2. Normal çalışma kayıtları (tüm NORMAL_DATA)
-    NORMAL_DATA.forEach(r => allRows.push({
+    // 2. Normal çalışma kayıtları
+    (newNormalRows||[]).forEach(r => allRows.push({
       sicil: '', name: '__DEPT__', department: r.department,
       alt_department: r.alt_department, date: r.date,
       status: 'NORMAL_HOURS', hours: r.normal_hours
     }));
 
-    // 3. FM kayıtları (tüm FM_DATA)
-    FM_DATA.forEach(r => allRows.push({
+    // 3. FM kayıtları
+    (newFMRows||[]).forEach(r => allRows.push({
       sicil: '', name: '__DEPT__', department: r.department,
       alt_department: r.alt_department, date: r.date,
       status: 'FM_HOURS', hours: r.fm_hours
     }));
 
-    // 4. Kişi bazlı normal ve FM — ay bazlı kaydet
-    const pfmByMonth     = window._personFmByMonth     || {};
-    const pnormByMonth   = window._personNormalByMonth || {};
-    Object.entries(pnormByMonth).forEach(([month, ayData]) => {
+    // 4. Kişi bazlı normal ve FM
+    Object.entries(newPNormByMonth||{}).forEach(([month, ayData]) => {
       Object.entries(ayData).forEach(([name, hours]) => allRows.push({
         sicil: '', name, department: '', alt_department: '',
         date: month + '-01', status: 'PERSON_NORMAL', hours
       }));
     });
-    Object.entries(pfmByMonth).forEach(([month, ayData]) => {
+    Object.entries(newPFmByMonth||{}).forEach(([month, ayData]) => {
       Object.entries(ayData).forEach(([name, hours]) => allRows.push({
         sicil: '', name, department: '', alt_department: '',
         date: month + '-01', status: 'PERSON_FM', hours
@@ -1841,49 +1843,32 @@ async function saveToSupabase(records) {
     });
 
     // 5. Kişi son aktif tarih
-    Object.entries(PERSON_LAST).forEach(([name, lastDate]) => allRows.push({
+    Object.entries(newPersonLastMap||{}).forEach(([name, lastDate]) => allRows.push({
       sicil: '', name, department: '', alt_department: '',
       date: lastDate, status: 'PERSON_LAST', hours: 0
     }));
 
-    console.log('Toplam yazılacak:', allRows.length, 'satır');
     if (allRows.length === 0) { console.warn('Yazılacak kayıt yok!'); return; }
-
-    // Tüm tabloyu temizle (tüm bellek yeniden yazılacağından güvenli)
-    const truncRes = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?id=gte.0`, {
-      method: 'DELETE',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    if (!truncRes.ok) {
-      const e = await truncRes.text();
-      console.error('Temizleme hatası:', e);
-    } else {
-      console.log('🗑️ Tablo temizlendi');
-    }
+    console.log('Upsert edilecek:', allRows.length, 'satır');
 
     for (let i = 0; i < allRows.length; i += BATCH) {
-      console.log(`Batch ${i}-${Math.min(i+BATCH, allRows.length)} yazılıyor...`);
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?on_conflict=sicil,name,date,status`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
         },
         body: JSON.stringify(allRows.slice(i, i + BATCH))
       });
       if (!res.ok) {
         const errText = await res.text();
-        console.error(`Batch hatası:`, errText);
+        console.error('Batch hatası:', errText);
         throw new Error('Kayıt hatası: ' + errText);
       }
     }
-    console.log(`✅ ${allRows.length} kayıt Supabase'e yazıldı`);
+    console.log(`✅ ${allRows.length} kayıt upsert edildi`);
   } catch(err) {
     console.error('Supabase error:', err);
   }
