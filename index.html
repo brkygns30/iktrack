@@ -1852,7 +1852,7 @@ async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMo
     console.log('Upsert edilecek:', allRows.length, 'satır');
 
     for (let i = 0; i < allRows.length; i += BATCH) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?on_conflict=sicil,name,date,status`, {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?on_conflict=sicil,name,department,alt_department,date,status`, {
         method: 'POST',
         headers: {
           'apikey': SUPABASE_KEY,
