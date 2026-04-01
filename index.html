@@ -1665,14 +1665,14 @@ function handleExcelUpload(event) {
       const FM_COLS      = ["FM1%50", "FM%75", "FM2%100", "FM3%100"];
 
       newRaw     = [];
-      const newNormal  = [];
-      const newFM      = [];
+      newNormal  = [];
+      newFM      = [];
+      newPersonFmByMonth     = {};
+      newPersonNormalByMonth = {};
+      newPersonLast          = {};
       const newPersonNormal = {};
       const newPersonFm     = {};
-      const newPersonFmByMonth     = {};
-      const newPersonNormalByMonth = {};
       const newPersonInfo   = {};
-      const newPersonLast   = {};
 
       const col = name => headers.indexOf(name);
 
