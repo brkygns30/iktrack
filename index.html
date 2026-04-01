@@ -1049,23 +1049,24 @@ async function doLogin() {
 
 async function loadFromSupabase() {
   try {
-    let allRows = [], from = 0;
     const BATCH = 1000;
-    while (true) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?select=*&order=date.asc&limit=${BATCH}&offset=${from}`, {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Prefer': 'count=none'
-        }
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const batch = await res.json();
-      allRows = allRows.concat(batch);
-      if (batch.length < BATCH) break;
-      from += BATCH;
-    }
+    const fetchAll = async (table) => {
+      let rows = [], from = 0;
+      while (true) {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?select=*&order=date.asc&limit=${BATCH}&offset=${from}`, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'count=none' }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const batch = await res.json();
+        rows = rows.concat(batch);
+        if (batch.length < BATCH) break;
+        from += BATCH;
+      }
+      return rows;
+    };
 
+    const [hrRows, summaryRows] = await Promise.all([fetchAll('hr_data'), fetchAll('hr_summary')]);
+    const allRows = [...hrRows, ...summaryRows];
     if (allRows.length === 0) return false;
 
     RAW.length = 0;
@@ -1086,7 +1087,7 @@ async function loadFromSupabase() {
     window._personFmByMonth     = {};
     window._personNormalByMonth = {};
     allRows.forEach(r => {
-      if (isExcluded(r)) return; // Finansal Kontrol'ü atla
+      if (isExcluded(r)) return;
       if (r.status === 'NORMAL_HOURS') {
         NORMAL_DATA.push({ department: r.department, alt_department: r.alt_department, date: r.date, normal_hours: r.hours });
       } else if (r.status === 'FM_HOURS') {
@@ -1109,7 +1110,7 @@ async function loadFromSupabase() {
       }
     });
 
-    console.log(`✅ ${allRows.length} kayıt yüklendi`);
+    console.log(`✅ hr_data: ${hrRows.length}, hr_summary: ${summaryRows.length} kayıt yüklendi`);
     return true;
   } catch(err) {
     console.error('loadFromSupabase error:', err);
@@ -1806,83 +1807,81 @@ function handleExcelUpload(event) {
 }
 
 
+async function upsertRows(table, rows, conflictCols) {
+  const BATCH = 1000;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflictCols}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify(rows.slice(i, i + BATCH))
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error('Batch hatası:', errText);
+      throw new Error('Kayıt hatası: ' + errText);
+    }
+  }
+}
+
 async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMonth, newPFmByMonth, newPersonLastMap) {
   try {
-    const BATCH = 1000;
-    const allRows = [];
-
-    // 1. Devamsızlık kayıtları
-    (newRawRows||[]).forEach(r => allRows.push({
+    // 1. hr_data — devamsızlık kayıtları (sicil, date unique)
+    const hrRows = (newRawRows||[]).map(r => ({
       sicil: r.sicil, name: r.name, department: r.department,
       alt_department: r.alt_department, date: r.date,
       status: r.status, hours: r.days
     }));
 
-    // 2. Normal çalışma kayıtları
-    (newNormalRows||[]).forEach(r => allRows.push({
-      sicil: '', name: '__DEPT__', department: r.department,
-      alt_department: r.alt_department, date: r.date,
-      status: 'NORMAL_HOURS', hours: r.normal_hours
-    }));
+    // 2. hr_summary — özet kayıtlar (name, department, alt_department, date, status unique)
+    const summaryMap = new Map();
+    const addSummary = (key, row) => {
+      if (summaryMap.has(key)) {
+        summaryMap.get(key).hours += row.hours;
+      } else {
+        summaryMap.set(key, {...row});
+      }
+    };
 
-    // 3. FM kayıtları
-    (newFMRows||[]).forEach(r => allRows.push({
-      sicil: '', name: '__DEPT__', department: r.department,
-      alt_department: r.alt_department, date: r.date,
-      status: 'FM_HOURS', hours: r.fm_hours
-    }));
-
-    // 4. Kişi bazlı normal ve FM
+    (newNormalRows||[]).forEach(r => {
+      const key = `${r.department}|${r.alt_department}|${r.date}|NORMAL_HOURS`;
+      addSummary(key, { name: '__DEPT__', department: r.department, alt_department: r.alt_department, date: r.date, status: 'NORMAL_HOURS', hours: r.normal_hours });
+    });
+    (newFMRows||[]).forEach(r => {
+      const key = `${r.department}|${r.alt_department}|${r.date}|FM_HOURS`;
+      addSummary(key, { name: '__DEPT__', department: r.department, alt_department: r.alt_department, date: r.date, status: 'FM_HOURS', hours: r.fm_hours });
+    });
     Object.entries(newPNormByMonth||{}).forEach(([month, ayData]) => {
-      Object.entries(ayData).forEach(([name, hours]) => allRows.push({
-        sicil: '', name, department: '', alt_department: '',
-        date: month + '-01', status: 'PERSON_NORMAL', hours
-      }));
+      Object.entries(ayData).forEach(([name, hours]) => {
+        const key = `${name}||${month}-01|PERSON_NORMAL`;
+        summaryMap.set(key, { name, department: '', alt_department: '', date: month+'-01', status: 'PERSON_NORMAL', hours });
+      });
     });
     Object.entries(newPFmByMonth||{}).forEach(([month, ayData]) => {
-      Object.entries(ayData).forEach(([name, hours]) => allRows.push({
-        sicil: '', name, department: '', alt_department: '',
-        date: month + '-01', status: 'PERSON_FM', hours
-      }));
-    });
-
-    // 5. Kişi son aktif tarih
-    Object.entries(newPersonLastMap||{}).forEach(([name, lastDate]) => allRows.push({
-      sicil: '', name, department: '', alt_department: '',
-      date: lastDate, status: 'PERSON_LAST', hours: 0
-    }));
-
-    if (allRows.length === 0) { console.warn('Yazılacak kayıt yok!'); return; }
-
-    // Aynı batch içindeki duplicateleri temizle — son değeri koru
-    const deduped = [];
-    const seen = new Map();
-    allRows.forEach(r => {
-      const key = `${r.sicil}|${r.name}|${r.department}|${r.alt_department}|${r.date}|${r.status}`;
-      seen.set(key, r);
-    });
-    seen.forEach(r => deduped.push(r));
-    const allRowsFinal = deduped;
-    console.log('Upsert edilecek:', allRowsFinal.length, 'satır (dedupe sonrası)');
-
-    for (let i = 0; i < allRowsFinal.length; i += BATCH) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?on_conflict=sicil,name,department,alt_department,date,status`, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates,return=minimal'
-        },
-        body: JSON.stringify(allRowsFinal.slice(i, i + BATCH))
+      Object.entries(ayData).forEach(([name, hours]) => {
+        const key = `${name}||${month}-01|PERSON_FM`;
+        summaryMap.set(key, { name, department: '', alt_department: '', date: month+'-01', status: 'PERSON_FM', hours });
       });
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error('Batch hatası:', errText);
-        throw new Error('Kayıt hatası: ' + errText);
-      }
-    }
-    console.log(`✅ ${allRowsFinal.length} kayıt upsert edildi`);
+    });
+    Object.entries(newPersonLastMap||{}).forEach(([name, lastDate]) => {
+      const key = `${name}||${lastDate}|PERSON_LAST`;
+      summaryMap.set(key, { name, department: '', alt_department: '', date: lastDate, status: 'PERSON_LAST', hours: 0 });
+    });
+
+    const summaryRows = [...summaryMap.values()];
+
+    console.log(`hr_data: ${hrRows.length}, hr_summary: ${summaryRows.length} upsert edilecek`);
+
+    await Promise.all([
+      hrRows.length > 0 ? upsertRows('hr_data', hrRows, 'sicil,date') : Promise.resolve(),
+      summaryRows.length > 0 ? upsertRows('hr_summary', summaryRows, 'name,department,alt_department,date,status') : Promise.resolve()
+    ]);
+
+    console.log(`✅ Upsert tamamlandı`);
   } catch(err) {
     console.error('Supabase error:', err);
   }
