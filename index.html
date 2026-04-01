@@ -1766,26 +1766,28 @@ async function saveToSupabase(records) {
   try {
     const BATCH = 1000;
     const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
-    const personMonthTag = (uploadedMonths[0] || '2000-01') + '-01';
+    const personMonthTag = uploadedMonths[uploadedMonths.length - 1]
+      ? uploadedMonths[uploadedMonths.length - 1] + '-01'
+      : '2000-01-01';
 
-    // Tüm veriyi tek array'de topla
+    // Tüm bellekteki veriyi yaz (tüm aylar)
     const allRows = [];
 
-    // 1. Devamsızlık kayıtları
-    records.forEach(r => allRows.push({
+    // 1. Devamsızlık kayıtları (tüm RAW)
+    RAW.forEach(r => allRows.push({
       sicil: r.sicil, name: r.name, department: r.department,
       alt_department: r.alt_department, date: r.date,
       status: r.status, hours: r.days
     }));
 
-    // 2. Normal çalışma kayıtları
+    // 2. Normal çalışma kayıtları (tüm NORMAL_DATA)
     NORMAL_DATA.forEach(r => allRows.push({
       sicil: '', name: '__DEPT__', department: r.department,
       alt_department: r.alt_department, date: r.date,
       status: 'NORMAL_HOURS', hours: r.normal_hours
     }));
 
-    // 3. FM kayıtları
+    // 3. FM kayıtları (tüm FM_DATA)
     FM_DATA.forEach(r => allRows.push({
       sicil: '', name: '__DEPT__', department: r.department,
       alt_department: r.alt_department, date: r.date,
@@ -1811,7 +1813,7 @@ async function saveToSupabase(records) {
     console.log('Toplam yazılacak:', allRows.length, 'satır');
     if (allRows.length === 0) { console.warn('Yazılacak kayıt yok!'); return; }
 
-    // Önce tüm tabloyu temizle
+    // Tüm tabloyu temizle (tüm bellek yeniden yazılacağından güvenli)
     const truncRes = await fetch(`${SUPABASE_URL}/rest/v1/hr_data?id=gte.0`, {
       method: 'DELETE',
       headers: {
