@@ -1877,7 +1877,7 @@ async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMo
     console.log(`hr_data: ${hrRows.length}, hr_summary: ${summaryRows.length} upsert edilecek`);
 
     await Promise.all([
-      hrRows.length > 0 ? upsertRows('hr_data', hrRows, 'sicil,date') : Promise.resolve(),
+      hrRows.length > 0 ? upsertRows('hr_data', hrRows, 'sicil,date,status') : Promise.resolve(),
       summaryRows.length > 0 ? upsertRows('hr_summary', summaryRows, 'name,department,alt_department,date,status') : Promise.resolve()
     ]);
 
