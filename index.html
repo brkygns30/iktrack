@@ -1085,6 +1085,8 @@ async function loadFromSupabase() {
       (r.alt_department||'').toLowerCase().includes(ex)
     ) || EXCLUDED_PERSONS.includes((r.name||'').toLocaleLowerCase('tr-TR'));
 
+    window._personFmByMonth     = {};
+    window._personNormalByMonth = {};
     allRows.forEach(r => {
       if (isExcluded(r)) return; // Finansal Kontrol'ü atla
       if (r.status === 'NORMAL_HOURS') {
@@ -1092,8 +1094,14 @@ async function loadFromSupabase() {
       } else if (r.status === 'FM_HOURS') {
         FM_DATA.push({ department: r.department, alt_department: r.alt_department, date: r.date, fm_hours: r.hours });
       } else if (r.status === 'PERSON_NORMAL') {
+        const m = (r.date||'').slice(0,7);
+        if (!window._personNormalByMonth[m]) window._personNormalByMonth[m] = {};
+        window._personNormalByMonth[m][r.name] = (window._personNormalByMonth[m][r.name]||0) + r.hours;
         PERSON_NORMAL[r.name] = (PERSON_NORMAL[r.name] || 0) + r.hours;
       } else if (r.status === 'PERSON_FM') {
+        const m = (r.date||'').slice(0,7);
+        if (!window._personFmByMonth[m]) window._personFmByMonth[m] = {};
+        window._personFmByMonth[m][r.name] = (window._personFmByMonth[m][r.name]||0) + r.hours;
         PERSON_FM[r.name] = (PERSON_FM[r.name] || 0) + r.hours;
       } else if (r.status === 'PERSON_LAST') {
         if (!PERSON_LAST[r.name] || r.date > PERSON_LAST[r.name]) PERSON_LAST[r.name] = r.date;
@@ -1659,6 +1667,8 @@ function handleExcelUpload(event) {
       const newFM      = [];
       const newPersonNormal = {};
       const newPersonFm     = {};
+      const newPersonFmByMonth     = {};
+      const newPersonNormalByMonth = {};
       const newPersonInfo   = {};
       const newPersonLast   = {};
 
@@ -1692,12 +1702,17 @@ function handleExcelUpload(event) {
         const normHours = NORMAL_COLS2.reduce((s,c) => s + toFloat(row[col(c)]), 0);
         if (normHours > 0) newNormal.push({department:dept, alt_department:alt, date, normal_hours:normHours});
 
-        // Person normal hours
+        // Person normal hours — ay bazlı
+        const month = date ? date.slice(0,7) : 'unknown';
+        if (!newPersonNormalByMonth[month]) newPersonNormalByMonth[month] = {};
+        newPersonNormalByMonth[month][name] = (newPersonNormalByMonth[month][name] || 0) + normHours;
         newPersonNormal[name] = (newPersonNormal[name] || 0) + normHours;
 
-        // Fazla mesai
+        // Fazla mesai — ay bazlı
         const fmHours = FM_COLS.reduce((s,c) => s + toFloat(row[col(c)]), 0);
         if (fmHours > 0) newFM.push({department:dept, alt_department:alt, date, fm_hours:fmHours});
+        if (!newPersonFmByMonth[month]) newPersonFmByMonth[month] = {};
+        newPersonFmByMonth[month][name] = (newPersonFmByMonth[month][name] || 0) + fmHours;
         newPersonFm[name] = (newPersonFm[name] || 0) + fmHours;
 
         // Person info (tüm kişiler — devamsızlık kaydı olmayanlar dahil)
@@ -1727,11 +1742,27 @@ function handleExcelUpload(event) {
       const keepFM = FM_DATA.filter(filterOutMonths);
       FM_DATA.length = 0; [...keepFM, ...newFM].forEach(r => FM_DATA.push(r));
 
-      // PERSON_* — yükleme sırasında birikmeyi önle: tüm değerleri yeniden yaz
-      Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
+      // PERSON_* — ay bazlı doğru birleştirme
+      // window._personFmByMonth[ay][isim] ve window._personNormalByMonth[ay][isim]
+      // ile tüm yüklü aylardaki kişi katkıları korunur.
+      if (!window._personFmByMonth)     window._personFmByMonth = {};
+      if (!window._personNormalByMonth) window._personNormalByMonth = {};
+
+      // Yüklenen aylara ait eski katkıları sil, yeni katkıları yaz
+      [...newMonths].forEach(m => {
+        window._personFmByMonth[m]     = newPersonFmByMonth[m]     || {};
+        window._personNormalByMonth[m] = newPersonNormalByMonth[m] || {};
+      });
+
+      // PERSON_FM ve PERSON_NORMAL'ı tüm aylardan yeniden hesapla
       Object.keys(PERSON_FM).forEach(k => delete PERSON_FM[k]);
-      Object.entries(newPersonNormal).forEach(([k,v]) => { PERSON_NORMAL[k] = v; });
-      Object.entries(newPersonFm).forEach(([k,v]) => { PERSON_FM[k] = v; });
+      Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
+      Object.values(window._personFmByMonth).forEach(ayData => {
+        Object.entries(ayData).forEach(([k,v]) => { PERSON_FM[k] = (PERSON_FM[k]||0) + v; });
+      });
+      Object.values(window._personNormalByMonth).forEach(ayData => {
+        Object.entries(ayData).forEach(([k,v]) => { PERSON_NORMAL[k] = (PERSON_NORMAL[k]||0) + v; });
+      });
       Object.assign(PERSON_INFO, newPersonInfo);
       Object.keys(newPersonLast).forEach(k => {
         if (!PERSON_LAST[k] || newPersonLast[k] > PERSON_LAST[k]) PERSON_LAST[k] = newPersonLast[k];
@@ -1765,10 +1796,6 @@ function handleExcelUpload(event) {
 async function saveToSupabase(records) {
   try {
     const BATCH = 1000;
-    const uploadedMonths = [...new Set(records.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
-    const personMonthTag = uploadedMonths[uploadedMonths.length - 1]
-      ? uploadedMonths[uploadedMonths.length - 1] + '-01'
-      : '2000-01-01';
 
     // Tüm bellekteki veriyi yaz (tüm aylar)
     const allRows = [];
@@ -1794,15 +1821,21 @@ async function saveToSupabase(records) {
       status: 'FM_HOURS', hours: r.fm_hours
     }));
 
-    // 4. Kişi bazlı normal ve FM
-    Object.entries(PERSON_NORMAL).forEach(([name, hours]) => allRows.push({
-      sicil: '', name, department: '', alt_department: '',
-      date: personMonthTag, status: 'PERSON_NORMAL', hours
-    }));
-    Object.entries(PERSON_FM).forEach(([name, hours]) => allRows.push({
-      sicil: '', name, department: '', alt_department: '',
-      date: personMonthTag, status: 'PERSON_FM', hours
-    }));
+    // 4. Kişi bazlı normal ve FM — ay bazlı kaydet
+    const pfmByMonth     = window._personFmByMonth     || {};
+    const pnormByMonth   = window._personNormalByMonth || {};
+    Object.entries(pnormByMonth).forEach(([month, ayData]) => {
+      Object.entries(ayData).forEach(([name, hours]) => allRows.push({
+        sicil: '', name, department: '', alt_department: '',
+        date: month + '-01', status: 'PERSON_NORMAL', hours
+      }));
+    });
+    Object.entries(pfmByMonth).forEach(([month, ayData]) => {
+      Object.entries(ayData).forEach(([name, hours]) => allRows.push({
+        sicil: '', name, department: '', alt_department: '',
+        date: month + '-01', status: 'PERSON_FM', hours
+      }));
+    });
 
     // 5. Kişi son aktif tarih
     Object.entries(PERSON_LAST).forEach(([name, lastDate]) => allRows.push({
