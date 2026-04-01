@@ -1628,6 +1628,9 @@ function handleExcelUpload(event) {
   reader.onload = async function(e) {
     let newRaw = [];
     try {
+      // Yüklemeden önce Supabase'den güncel veriyi çek (bellek eksikse tamamla)
+      await loadFromSupabase();
+
       const data = new Uint8Array(e.target.result);
       const wb   = XLSX.read(data, {type:'array', cellDates:true});
       const ws   = wb.Sheets[wb.SheetNames[0]];
