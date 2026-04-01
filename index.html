@@ -1079,10 +1079,11 @@ async function loadFromSupabase() {
     Object.keys(PERSON_LAST).forEach(k => delete PERSON_LAST[k]);
 
     const EXCLUDED_DEPTS = ['finansal kontrol'];
+    const EXCLUDED_PERSONS = ['merve yaşar', 'elif özdemir'];
     const isExcluded = r => EXCLUDED_DEPTS.some(ex =>
       (r.department||'').toLowerCase().includes(ex) ||
       (r.alt_department||'').toLowerCase().includes(ex)
-    );
+    ) || EXCLUDED_PERSONS.includes((r.name||'').toLocaleLowerCase('tr-TR'));
 
     allRows.forEach(r => {
       if (isExcluded(r)) return; // Finansal Kontrol'ü atla
@@ -1486,8 +1487,11 @@ function renderTable() {
   // Aggregate filtered data per person
   const personMap = {};
 
+  const EXCLUDED_PERSONS_RENDER = ['merve yaşar', 'elif özdemir'];
+  const isExcludedPerson = name => EXCLUDED_PERSONS_RENDER.includes(name.toLocaleLowerCase('tr-TR'));
   // Add persons from filtered absence records
   filtered.forEach(r => {
+    if (isExcludedPerson(r.name)) return;
     if (!personMap[r.name]) {
       personMap[r.name] = {
         name: r.name, sicil: r.sicil || '',
@@ -1507,6 +1511,7 @@ function renderTable() {
 
   // Use PERSON_INFO which has all 194 persons with dept/alt/sicil
   Object.entries(PERSON_INFO).forEach(([name, info]) => {
+    if (isExcludedPerson(name)) return;
     if (personMap[name]) return; // already added via filtered
     // Apply dept/alt filter
     if (dept && info.department !== dept) return;
@@ -1660,6 +1665,7 @@ function handleExcelUpload(event) {
       const col = name => headers.indexOf(name);
 
       const EXCLUDED_DEPTS = ['finansal kontrol'];
+      const EXCLUDED_PERSONS = ['merve yaşar', 'elif özdemir'];
       const isExcluded = dept => EXCLUDED_DEPTS.some(ex => (dept||'').toLowerCase().includes(ex));
 
       for (let i = headerIdx+1; i < rows.length; i++) {
@@ -1673,8 +1679,8 @@ function handleExcelUpload(event) {
         const sicil  = String(row[col('Sicil No')]          || '').trim();
         const date   = toDate(row[col('Tarih')]);
 
-        // Finansal Kontrol departmanını tamamen dışla
-        if (isExcluded(dept) || isExcluded(alt)) continue;
+        // Finansal Kontrol departmanını ve kapsam dışı kişileri tamamen dışla
+        if (isExcluded(dept) || isExcluded(alt) || EXCLUDED_PERSONS.includes(name.toLocaleLowerCase('tr-TR'))) continue;
 
         // Absence records
         ABSENCE_COLS.forEach(c => {
@@ -1721,9 +1727,11 @@ function handleExcelUpload(event) {
       const keepFM = FM_DATA.filter(filterOutMonths);
       FM_DATA.length = 0; [...keepFM, ...newFM].forEach(r => FM_DATA.push(r));
 
-      // PERSON_* — yeni verilerle birleştir (toplam)
-      Object.keys(newPersonNormal).forEach(k => { PERSON_NORMAL[k] = (PERSON_NORMAL[k]||0) + newPersonNormal[k]; });
-      Object.keys(newPersonFm).forEach(k => { PERSON_FM[k] = (PERSON_FM[k]||0) + newPersonFm[k]; });
+      // PERSON_* — yükleme sırasında birikmeyi önle: tüm değerleri yeniden yaz
+      Object.keys(PERSON_NORMAL).forEach(k => delete PERSON_NORMAL[k]);
+      Object.keys(PERSON_FM).forEach(k => delete PERSON_FM[k]);
+      Object.entries(newPersonNormal).forEach(([k,v]) => { PERSON_NORMAL[k] = v; });
+      Object.entries(newPersonFm).forEach(([k,v]) => { PERSON_FM[k] = v; });
       Object.assign(PERSON_INFO, newPersonInfo);
       Object.keys(newPersonLast).forEach(k => {
         if (!PERSON_LAST[k] || newPersonLast[k] > PERSON_LAST[k]) PERSON_LAST[k] = newPersonLast[k];
