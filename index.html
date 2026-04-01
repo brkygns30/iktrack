@@ -1065,7 +1065,8 @@ async function loadFromSupabase() {
       return rows;
     };
 
-    const [hrRows, summaryRows] = await Promise.all([fetchAll('hr_data'), fetchAll('hr_summary')]);
+    const hrRows = await fetchAll('hr_data');
+    const summaryRows = await fetchAll('hr_summary');
     const allRows = [...hrRows, ...summaryRows];
     if (allRows.length === 0) return false;
 
