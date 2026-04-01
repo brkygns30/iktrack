@@ -1734,14 +1734,16 @@ function handleExcelUpload(event) {
 
       // Sadece yüklenen aylara ait bellekteki verileri temizle, diğerlerini koru
       const filterOutMonths = r => !newMonths.has((r.date||'').slice(0,7));
-      const keepRaw = RAW.filter(filterOutMonths);
-      RAW.length = 0; [...keepRaw, ...newRaw].forEach(r => RAW.push(r));
-
+      const keepRaw    = RAW.filter(filterOutMonths);
       const keepNormal = NORMAL_DATA.filter(filterOutMonths);
+      const keepFM     = FM_DATA.filter(filterOutMonths);
+      console.log('newMonths:', [...newMonths]);
+      console.log('keepRaw:', keepRaw.length, '+ newRaw:', newRaw.length);
+      console.log('keepNormal:', keepNormal.length, '+ newNormal:', newNormal.length);
+      console.log('keepFM:', keepFM.length, '+ newFM:', newFM.length);
+      RAW.length = 0;         [...keepRaw,    ...newRaw].forEach(r => RAW.push(r));
       NORMAL_DATA.length = 0; [...keepNormal, ...newNormal].forEach(r => NORMAL_DATA.push(r));
-
-      const keepFM = FM_DATA.filter(filterOutMonths);
-      FM_DATA.length = 0; [...keepFM, ...newFM].forEach(r => FM_DATA.push(r));
+      FM_DATA.length = 0;     [...keepFM,     ...newFM].forEach(r => FM_DATA.push(r));
 
       // PERSON_* — ay bazlı doğru birleştirme
       // window._personFmByMonth[ay][isim] ve window._personNormalByMonth[ay][isim]
