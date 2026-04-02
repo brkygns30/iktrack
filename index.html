@@ -1660,7 +1660,7 @@ function handleExcelUpload(event) {
       const data = new Uint8Array(e.target.result);
       const wb   = XLSX.read(data, {type:'array', cellDates:true});
       const ws   = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
 
       // Find header row (row with 'NORMAL' column)
       let headerIdx = -1;
@@ -1891,10 +1891,11 @@ async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMo
 
     const summaryRows = [...summaryMap.values()];
 
-    // Excel'deki ayları tespit et
+    // Excel'deki ayları tespit et — tüm RAW tarihlerinden de al
     const excelDates = [...new Set([
       ...(newNormalRows||[]).map(r => r.date),
-      ...(newFMRows||[]).map(r => r.date)
+      ...(newFMRows||[]).map(r => r.date),
+      ...(newRawRows||[]).map(r => r.date)
     ])].filter(Boolean).sort();
 
     const excelMonths = [...new Set([
