@@ -1676,11 +1676,11 @@ function handleExcelUpload(event) {
       };
       const toDate = v => {
         if (!v) return '';
-        const toLocal = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-        if (v instanceof Date) return toLocal(v);
+        const toUTC = d => d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0');
+        if (v instanceof Date) return toUTC(v);
         if (typeof v === 'number') {
           const d = new Date(Math.round((v - 25569)*86400*1000));
-          return toLocal(d);
+          return toUTC(d);
         }
         return String(v).slice(0,10);
       };
