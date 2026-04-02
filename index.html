@@ -1890,6 +1890,34 @@ async function saveToSupabase(newRawRows, newNormalRows, newFMRows, newPNormByMo
 
     const summaryRows = [...summaryMap.values()];
 
+    // Excel'deki tarihleri tespit et — bu tarihlere ait hr_summary satırlarını önce sil
+    const excelDates = [...new Set([
+      ...(newNormalRows||[]).map(r => r.date),
+      ...(newFMRows||[]).map(r => r.date)
+    ])].filter(Boolean).sort();
+
+    if (excelDates.length > 0) {
+      const minDate = excelDates[0];
+      const maxDate = excelDates[excelDates.length - 1];
+      console.log(`hr_summary temizleniyor: ${minDate} - ${maxDate} arası NORMAL_HOURS ve FM_HOURS...`);
+      const delRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/hr_summary?date=gte.${minDate}&date=lte.${maxDate}&status=in.(NORMAL_HOURS,FM_HOURS)`,
+        {
+          method: 'DELETE',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      if (!delRes.ok) {
+        console.error('Silme hatası:', await delRes.text());
+      } else {
+        console.log('✅ Eski NORMAL_HOURS/FM_HOURS silindi');
+      }
+    }
+
     console.log(`hr_data: ${hrRows.length}, hr_summary: ${summaryRows.length} upsert edilecek`);
 
     await Promise.all([
