@@ -1727,6 +1727,7 @@ function handleExcelUpload(event) {
 
         // Normal hours
         const normHours = NORMAL_COLS2.reduce((s,c) => s + toFloat(row[col(c)]), 0);
+        if (date && ["2026-03-06","2026-03-13","2026-03-31"].includes(date) && name === "SELİM KAYA") console.log("DEBUG:", date, normHours, row[col("NORMAL")]);
         if (normHours > 0) newNormal.push({department:dept, alt_department:alt, date, normal_hours:normHours});
 
         // Person normal hours — ay bazlı
