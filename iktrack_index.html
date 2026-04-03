@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İKTrack – Devamsızlık Takip Paneli</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0f2f5;
+  --surface:#ffffff;
+  --s2:#f7f8fa;
+  --border:rgba(15,23,42,.06);
+  --border2:rgba(15,23,42,.12);
+  --text:#0f172a;
+  --text2:#475569;
+  --text3:#94a3b8;
+  --navy:#1e3a5f;
+  --navy-l:#e8eef6;
+  --teal:#0d9488;
+  --teal-l:#f0fdfa;
+  --red:#dc2626;
+  --red-l:#fef2f2;
+  --blue:#2563eb;
+  --blue-l:#eff6ff;
+  --amber:#d97706;
+  --amber-l:#fffbeb;
+  --gold:#b8860b;
+  --slate:#64748b;
+  /* legacy compat */
+  --purple:#1e3a5f;
+  --purple-l:#e8eef6;
+  --r:10px;
+  --shadow:0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.06);
+  --shadow-md:0 4px 6px rgba(15,23,42,.07), 0 2px 4px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+.topbar{background:var(--navy);border-bottom:none;display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:58px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(15,23,42,.18)}
+.topbar-l{display:flex;align-items:center;gap:16px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:#fff;text-decoration:none;letter-spacing:.01em}
+.logo-box{display:none}
+.logo-text{color:#fff;font-weight:700;font-size:16px;letter-spacing:.02em}
+.logo-dot{width:6px;height:6px;background:#7dd3fc;border-radius:50%;display:inline-block;margin-left:2px;margin-bottom:6px;vertical-align:bottom}
+.vsep{width:1px;height:20px;background:rgba(255,255,255,.2)}
+.chip{font-size:12px;color:rgba(255,255,255,.7);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:4px 10px}
+.tbtn{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--navy);background:#e2e8f0;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;transition:.15s;font-family:inherit}
+.tbtn:hover{background:#cbd5e1}
+.tbtn.outline{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.tbtn.outline:hover{background:rgba(255,255,255,.2)}
+.tbtn.danger{background:rgba(220,38,38,.15);color:#fca5a5;border:1px solid rgba(220,38,38,.3)}
+.tbtn.danger:hover{background:rgba(220,38,38,.25)}
+.topbar-r{display:flex;align-items:center;gap:10px;font-size:12px;color:rgba(255,255,255,.6)}
+.topbar-r b{color:rgba(255,255,255,.9)}
+.user-info{font-size:12px;color:rgba(255,255,255,.75)}
+#file-input{display:none}
+
+.screen{display:none}
+.screen.active{display:flex;flex-direction:column}
+
+/* LOGIN */
+#login-screen{align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1e3a5f 0%,#1e4976 50%,#0d3b6e 100%)}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:44px 40px;width:400px;display:flex;flex-direction:column;gap:20px;box-shadow:0 8px 32px rgba(15,23,42,.12)}
+.login-logo{display:flex;align-items:center;gap:0;font-weight:700;font-size:22px;justify-content:center;margin-bottom:6px;color:var(--navy);letter-spacing:.02em}
+.login-logo .logo-box{display:none}
+.login-sub{text-align:center;font-size:13px;color:var(--text2)}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.form-group input{font-family:inherit;font-size:14px;color:var(--text);background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;outline:none;transition:.15s}
+.form-group input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(30,58,95,.1)}
+.login-btn{font-family:inherit;font-size:14px;font-weight:700;color:#fff;background:var(--navy);border:none;border-radius:8px;padding:12px;cursor:pointer;transition:.15s;width:100%;letter-spacing:.02em}
+.login-btn:hover{opacity:.88}
+.login-err{font-size:12px;color:var(--red);text-align:center;min-height:16px}
+
+.wrap{padding:28px;max-width:1600px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+
+/* EMPTY / LOADING */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:460px;text-align:center}
+.empty-icon{width:80px;height:80px;background:var(--navy-l);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.empty-icon svg{width:36px;height:36px;stroke:var(--navy);fill:none;stroke-width:1.7}
+.empty-title{font-size:20px;font-weight:600}
+.empty-sub{font-size:13px;color:var(--text2);max-width:400px;line-height:1.65}
+.spinner{width:36px;height:36px;border:3px solid var(--navy-l);border-top-color:var(--navy);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* FILTERS */
+.filters{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;box-shadow:var(--shadow)}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600}
+.fg select,.fg input[type=date]{font-family:inherit;font-size:12px;color:var(--text);background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;min-width:140px;cursor:pointer;outline:none;transition:.15s}
+.fg select:focus,.fg input[type=date]:focus{border-color:var(--purple)}
+.rbtn{font-size:12px;font-weight:500;color:var(--text2);background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:7px 14px;cursor:pointer;transition:.15s;font-family:inherit;white-space:nowrap}
+.rbtn:hover{color:var(--red);border-color:var(--red);background:var(--red-l)}
+
+/* overlay spinner for filter updates */
+.dash-loading{position:relative}
+.dash-loading::after{content:'';position:fixed;inset:0;background:rgba(243,243,247,.6);z-index:100;display:flex;align-items:center;justify-content:center}
+
+/* SECTION */
+.sec-label{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.sec-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.sec-text{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--navy);white-space:nowrap}
+.sec-line{flex:1;height:1px;background:var(--border)}
+.sec-sub{font-size:12px;color:var(--text3);white-space:nowrap}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;position:relative;overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .2s}
+.kpi-card:hover{box-shadow:var(--shadow-md)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;border-radius:var(--r) 0 0 var(--r)}
+.kpi-card.blue::before{background:var(--blue)}
+.kpi-card.red::before{background:var(--red)}
+.kpi-card.teal::before{background:var(--teal)}
+.kpi-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.kpi-title.blue{color:var(--blue)}.kpi-title.red{color:var(--red)}.kpi-title.teal{color:var(--teal)}
+.kpi-inner{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.kpi-metric{display:flex;flex-direction:column}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600;height:14px;margin-bottom:8px}
+.kpi-value{font-size:28px;font-weight:700;line-height:1;letter-spacing:-.02em;height:28px}
+.kpi-value.blue{color:var(--blue)}.kpi-value.purple{color:var(--navy)}.kpi-value.red{color:var(--red)}.kpi-value.teal{color:var(--teal)}.kpi-value.muted{color:var(--text3);font-size:28px;font-weight:500}
+.kpi-unit{font-size:11px;color:var(--text2);height:16px;margin-top:4px}
+.kpi-pct{font-size:12px;font-weight:700;height:18px;margin-top:2px;display:block}
+.pbar{height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;margin-top:10px;width:100%}
+.pfill{height:100%;border-radius:2px;transition:width .6s ease}
+
+/* ÜRETİM */
+.prod-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.prod-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px 24px;position:relative;overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .2s}
+.prod-card:hover{box-shadow:var(--shadow-md)}
+.prod-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;border-radius:var(--r) 0 0 var(--r)}
+.prod-card.purple::before{background:var(--navy)}
+.prod-card.teal::before{background:var(--teal)}
+.prod-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);font-weight:600;margin-bottom:10px}
+.prod-value{font-size:32px;font-weight:600;line-height:1;margin-bottom:5px}
+.prod-value.purple{color:var(--navy)}.prod-value.teal{color:var(--teal)}.prod-value.muted{color:var(--text3);font-size:26px;font-weight:500}
+.prod-unit{font-size:12px;color:var(--text2);margin-bottom:6px}
+.prod-diff{font-size:12px;font-weight:600}
+.prod-diff.pos{color:var(--teal)}.prod-diff.neg{color:var(--red)}
+
+/* CHART */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px;box-shadow:var(--shadow)}
+.ctitle{font-size:14px;font-weight:600;margin-bottom:3px}
+.csub{font-size:11px;color:var(--text3);margin-bottom:16px}
+.tnote{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--red);margin-top:8px}
+.tline{width:14px;height:2px;background:var(--red);border-radius:2px;display:inline-block}
+
+/* TABLE */
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.tcard-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.tcard-head h3{font-size:15px;font-weight:600}
+.tactions{display:flex;align-items:center;gap:8px}
+.swrap{display:flex;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:5px 10px}
+.swrap input{font-family:inherit;font-size:12px;color:var(--text);background:transparent;border:none;outline:none;width:200px}
+.csvbtn{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:#fff;background:var(--blue);border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;transition:.15s}
+.csvbtn:hover{opacity:.85}
+table{width:100%;border-collapse:collapse}
+thead th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600;padding:9px 16px;text-align:left;background:var(--s2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+thead th:hover{color:var(--purple)}
+thead th.asc::after{content:' ↑';color:var(--purple)}
+thead th.desc::after{content:' ↓';color:var(--purple)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#f5f5fc}
+tbody td{padding:9px 16px;font-size:12px}
+.rv{font-weight:600}
+.rv.hi{color:var(--red)}.rv.mid{color:var(--amber)}.rv.lo{color:var(--text2)}.rv.tl{color:var(--teal)}
+.dc{color:var(--text3)}
+.tfooter{padding:10px 16px;font-size:12px;color:var(--text2);border-top:1px solid var(--border);background:var(--s2)}
+thead th{position:sticky;top:0;z-index:2}
+
+@media(max-width:1100px){.kpi-grid,.prod-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.evo-wrap{display:flex;align-items:flex-end;gap:0;position:relative;width:340px;height:90px}
+.evo-char{position:absolute;bottom:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+.evo-char span{font-size:10px;color:var(--text3);white-space:nowrap}
+@keyframes evo-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes evo-arrow{0%,100%{opacity:.3}50%{opacity:1}}
+.evo-char-icon{animation:evo-bob .7s ease-in-out infinite}
+.evo-arrow{position:absolute;bottom:28px;font-size:16px;color:var(--text3);animation:evo-arrow 1s ease-in-out infinite}
+@media(max-width:900px){.kpi-grid,.chart-grid,.prod-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="screen active" style="display:flex">
+  <div class="login-box">
+    <div>
+      <div class="login-logo">İKTrack<span class="logo-dot" style="background:var(--navy);margin-left:3px"></span></div>
+      <div class="login-sub">Devamsızlık Takip Paneli</div>
+    </div>
+    <div class="form-group">
+      <label>E-posta</label>
+      <input type="email" id="login-email" placeholder="ornek@sirket.com" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="form-group">
+      <label>Şifre</label>
+      <input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="login-err" id="login-err"></div>
+    <button class="login-btn" onclick="doLogin()">Giriş Yap</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard-screen" class="screen">
+  <div class="topbar">
+    <div class="topbar-l">
+      <a class="logo" href="#"><span class="logo-text">İKTrack<span class="logo-dot"></span></span></a>
+      <div class="vsep"></div>
+      <div class="chip" id="today-chip"></div>
+      <button class="tbtn" id="upload-btn" onclick="document.getElementById('file-input').click()" style="display:none">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Excel Yükle
+      </button>
+      <input type="file" id="file-input" accept=".xlsx,.xls" onchange="handleUpload(this)">
+      <button class="tbtn outline" id="admin-btn" onclick="window.location.href='admin.html'" style="display:none">⚙ Admin Paneli</button>
+    </div>
+    <div class="topbar-r">
+      <span class="user-info" id="user-info"></span>
+      <div class="vsep"></div>
+      <span>Son güncelleme: <b id="last-update">—</b></span>
+      <button class="tbtn danger" onclick="doLogout()">Çıkış</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="empty-state" id="empty-state">
+      <div id="evolution-anim" style="display:none;align-items:center;justify-content:center;margin-bottom:16px">
+        <div class="evo-wrap" id="evo-wrap"></div>
+      </div>
+      <div class="spinner" id="loading-spinner"></div>
+      <div class="empty-title" id="empty-title">Yükleniyor...</div>
+      <div class="empty-sub"  id="empty-sub"></div>
+    </div>
+
+    <div id="dash-content" style="display:none;flex-direction:column;gap:24px">
+
+      <!-- FİLTRELER -->
+      <div class="filters">
+        <div class="fg">
+          <label>Departman</label>
+          <select id="f-dept" onchange="onFilterChange()"><option value="">Tümü</option></select>
+        </div>
+        <div class="fg">
+          <label>Alt Departman</label>
+          <select id="f-alt" onchange="onFilterChange()"><option value="">Tümü</option></select>
+        </div>
+        <div class="fg">
+          <label>Devamsızlık Türü</label>
+          <select id="f-type" onchange="onFilterChange()">
+            <option value="toplam">Tümü</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Başlangıç Tarihi</label>
+          <input type="date" id="f-start" onchange="onFilterChange()">
+        </div>
+        <div class="fg">
+          <label>Bitiş Tarihi</label>
+          <input type="date" id="f-end" onchange="onFilterChange()">
+        </div>
+        <button class="rbtn" onclick="resetFilters()">✕ Sıfırla</button>
+      </div>
+
+      <!-- KPI -->
+      <div class="kpi-grid">
+        <div class="kpi-card blue">
+          <div class="kpi-title blue">Çalışma İstatistikleri</div>
+          <div class="kpi-inner">
+            <div class="kpi-metric">
+              <div class="kpi-label">Normal Çalışma</div>
+              <div class="kpi-value blue" id="k-nc">—</div>
+              <div class="kpi-unit">saat</div>
+              <div class="kpi-pct">&nbsp;</div>
+              <div class="pbar"><div class="pfill" id="b-nc" style="background:var(--blue);width:0%"></div></div>
+            </div>
+            <div class="kpi-metric">
+              <div class="kpi-label">Bütçelenmiş Çalışma</div>
+              <div class="kpi-value muted" id="k-bc">—</div>
+              <div class="kpi-unit">saat</div>
+              <div class="kpi-pct">&nbsp;</div>
+              <div class="pbar"><div class="pfill" id="b-bc" style="background:var(--blue);opacity:.3;width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-title red">Devamsızlık İstatistikleri</div>
+          <div class="kpi-inner">
+            <div class="kpi-metric">
+              <div class="kpi-label">Toplam Devamsızlık</div>
+              <div class="kpi-value purple" id="k-td">—</div>
+              <div class="kpi-unit">saat</div>
+              <div class="kpi-pct" style="color:var(--navy)" id="p-td">&nbsp;</div>
+              <div class="pbar"><div class="pfill" id="b-td" style="background:var(--navy);width:0%"></div></div>
+            </div>
+            <div class="kpi-metric">
+              <div class="kpi-label">Önlenebilir Devamsızlık</div>
+              <div class="kpi-value red" id="k-od">—</div>
+              <div class="kpi-unit">saat</div>
+              <div class="kpi-pct" style="color:var(--red)" id="p-od">&nbsp;</div>
+              <div class="pbar"><div class="pfill" id="b-od" style="background:var(--red);width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="kpi-card teal">
+          <div class="kpi-title teal">Fazla Mesai İstatistikleri</div>
+          <div class="kpi-inner">
+            <div class="kpi-metric">
+              <div class="kpi-label">Fazla Mesai</div>
+              <div class="kpi-value teal" id="k-fm">—</div>
+              <div class="kpi-unit">saat</div>
+              <div class="kpi-pct" style="color:var(--teal)" id="p-fm">&nbsp;</div>
+              <div class="pbar"><div class="pfill" id="b-fm" style="background:var(--teal);width:0%"></div></div>
+            </div>
+            <div class="kpi-metric">
+              <div class="kpi-label">Bütçelenmiş Mesai</div>
+              <div class="kpi-value muted" id="k-bm">—</div>
+              <div class="kpi-unit">saat</div>
+              <div class="kpi-pct">&nbsp;</div>
+              <div class="pbar"><div class="pfill" id="b-bm" style="background:var(--teal);opacity:.3;width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ÜRETİM -->
+      <div>
+        <div class="sec-label">
+          <div class="sec-icon" style="background:var(--teal-l)">⚙️</div>
+          <span class="sec-text">Üretim İstatistikleri</span>
+          <div class="sec-line"></div>
+        </div>
+        <div class="prod-grid">
+          <div class="prod-card purple">
+            <div class="prod-label">Cihaz Gerçekleşen</div>
+            <div class="prod-value purple" id="p-cg">—</div>
+            <div class="prod-unit">adet / saat</div>
+            <div class="prod-diff" id="p-cdiff"></div>
+          </div>
+          <div class="prod-card purple">
+            <div class="prod-label">Cihaz Hedef</div>
+            <div class="prod-value muted" id="p-ch">—</div>
+            <div class="prod-unit">adet / saat (bütçe)</div>
+          </div>
+          <div class="prod-card teal">
+            <div class="prod-label">Radyatör Gerçekleşen</div>
+            <div class="prod-value teal" id="p-rg">—</div>
+            <div class="prod-unit">adet / saat</div>
+            <div class="prod-diff" id="p-rdiff"></div>
+          </div>
+          <div class="prod-card teal">
+            <div class="prod-label">Radyatör Hedef</div>
+            <div class="prod-value muted" id="p-rh">—</div>
+            <div class="prod-unit">adet / saat (bütçe)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRAFİKLER -->
+      <div>
+        <div class="sec-label">
+          <div class="sec-icon" style="background:var(--purple-l)">📊</div>
+          <span class="sec-text">Alt Departman Bazlı Analiz</span>
+          <div class="sec-line"></div>
+          <span class="sec-sub" id="chart-sub"></span>
+        </div>
+        <div class="chart-grid">
+          <div class="ccard">
+            <div class="ctitle">Alt Departman Bazlı Toplam Devamsızlık</div>
+            <div class="csub">Toplam Devamsızlık / (Normal Çalışma + Toplam Devamsızlık) %</div>
+            <div style="position:relative;height:240px"><canvas id="c-top"></canvas></div>
+            <div class="tnote"><span class="tline"></span> Hedef %3</div>
+          </div>
+          <div class="ccard">
+            <div class="ctitle">Alt Departman Bazlı Önlenebilir Devamsızlık</div>
+            <div class="csub">Önlenebilir Devamsızlık / (Normal Çalışma + Toplam Devamsızlık) %</div>
+            <div style="position:relative;height:240px"><canvas id="c-onl"></canvas></div>
+            <div class="tnote"><span class="tline"></span> Hedef %1</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ÇALIŞAN TABLOSU -->
+      <div>
+        <div class="sec-label">
+          <div class="sec-icon" style="background:var(--blue-l)">👥</div>
+          <span class="sec-text">Çalışan Bazlı Özet</span>
+          <div class="sec-line"></div>
+          <span class="sec-sub" id="emp-sub"></span>
+        </div>
+        <div class="tcard">
+          <div class="tcard-head">
+            <h3>Çalışan Listesi</h3>
+            <div class="tactions">
+              <div class="swrap">
+                <svg width="13" height="13" fill="none" stroke="#a0a0b8" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" id="emp-search" placeholder="Ad, sicil, departman..." oninput="renderTable()">
+              </div>
+              <button class="csvbtn" onclick="downloadCSV()">↓ CSV İndir</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;overflow-y:auto;max-height:480px">
+            <table>
+              <thead><tr>
+                <th onclick="sortBy('ad')"      id="th-ad">Ad Soyad</th>
+                <th onclick="sortBy('altDept')" id="th-altDept">Alt Departman</th>
+                <th onclick="sortBy('onlPct')"  id="th-onlPct">Önl. %</th>
+                <th onclick="sortBy('topPct')"  id="th-topPct">Top. Dev. %</th>
+                <th onclick="sortBy('altOnl')"  id="th-altOnl">Alt Önl. %</th>
+                <th onclick="sortBy('altTop')"  id="th-altTop">Alt Top. %</th>
+                <th onclick="sortBy('fm')"      id="th-fm">FM Saat</th>
+              </tr></thead>
+              <tbody id="emp-tbody"></tbody>
+            </table>
+          </div>
+          <div class="tfooter" id="emp-footer"></div>
+        </div>
+      </div>
+
+    </div><!-- /dash-content -->
+  </div><!-- /wrap -->
+</div>
+
+<script>
+const SUPA_URL = 'https://zwvffqaxzlgdnnqxrjkl.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3dmZmcWF4emxnZG5ucXhyamtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDU5MjUsImV4cCI6MjA5MDcyMTkyNX0.mTE703dwRHwHGNdh985NzGBQYOvpI1jpv0ObNhfTGtY';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// Excel sütun indeksleri (upload için)
+const C = {
+  sicil:0,adi:1,soyadi:2,dept:3,altDept:4,tarih:5,
+  normal:8,htatil:12,gtatil:13,devsiz:9,sebebsiz:10,
+  fm50:14,fm75:15,fm100a:16,fm100b:17,
+  yillik:18,ucretsiz:19,ksCalisma:20,fmSonrasi:21,babalik:22,
+  olum:23,evlenme:24,digerUcrli:25,ucrli12:26,dOncesi:27,dSonrasi:28,
+  rapor:29,ucrlRapor:30,isKazasi:31,gorevli:33,vizite:34,uzaktan:36,
+  sendika:35,pandemi:37,sutIzni:38,izin90:39,izin75:40,
+  engelliCocuk:41,kismiIstihdam:42,okul:46,ucretsiz12:47,
+};
+
+// Devamsızlık türü filtresinde gösterilecek kolonlar
+const TOPLAM_DEF = [
+  {key:'devsiz',lbl:'DEVSIZ'},{key:'sebebsiz',lbl:'SEBEBSIZ'},
+  {key:'yillik',lbl:'YILLIK'},{key:'ucretsiz',lbl:'ÜCRTSİZ'},
+  {key:'olum',lbl:'ÖLÜM'},{key:'diger_ucrli',lbl:'DİĞER ÜCRLİ'},
+  {key:'ucrli_12',lbl:'ÜCRLİ 1/2'},{key:'rapor',lbl:'RAPOR'},
+  {key:'is_kazasi',lbl:'İŞ.KAZASI'},{key:'sendika',lbl:'SENDİKA'},
+  {key:'pandemi',lbl:'PANDEMİ'},{key:'izin_90',lbl:'1/2 İZİN 9.0'},
+  {key:'izin_75',lbl:'1/2 İZİN 7.5'},{key:'kismi_istihdam',lbl:'KISMİ İSTİHDAM'},
+  {key:'okul',lbl:'O K U L'},{key:'ucretsiz_12',lbl:'ÜCRSİZ 1/2'},
+  {key:'babalik',lbl:'BABALIK'},{key:'evlenme',lbl:'EVLENME'},
+  {key:'d_oncesi',lbl:'D.ÖNCESİ'},{key:'d_sonrasi',lbl:'D.SONRASI'},
+  {key:'ucrl_rapor',lbl:'ÜCRL.RAPOR'},{key:'vizite',lbl:'VİZİTE'},
+  {key:'sut_izni',lbl:'SÜT İZNİ'},{key:'engelli_cocuk',lbl:'ENGELLİ ÇOCUK'},
+  {key:'ks_calisma',lbl:'KS.ÇALIŞMA'},{key:'fm_sonrasi',lbl:'FM.SONRASI'},
+];
+const ONLENEBILIR_DEF = [
+  {key:'devsiz',lbl:'DEVSIZ'},{key:'sebebsiz',lbl:'SEBEBSIZ'},
+  {key:'ucretsiz',lbl:'ÜCRTSİZ'},{key:'rapor',lbl:'RAPOR'},{key:'is_kazasi',lbl:'İŞ.KAZASI'},
+];
+
+// ── STATE ──
+let budgetData = [];   // cihaz/radyatör hedef adetleri (budget_settings)
+let deptBudget = [];   // alt departman saat bütçesi (budget_by_dept)
+let prodActual = [];   // gerçekleşen üretim listesi
+let deptData   = [];   // get_dashboard_summary sonucu
+let empData    = [];   // get_employee_summary sonucu
+let empVis     = [];
+let charts     = {top:null, onl:null};
+let _sk='onlPct', _sd=-1;
+let currentUser=null, userRole=null;
+let filterDebounce=null;
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('today-chip').textContent =
+    new Date().toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'});
+  const {data:{session}} = await supa.auth.getSession();
+  if (session) await initUser(session.user);
+  else showScreen('login-screen');
+});
+
+async function initUser(user) {
+  currentUser = user;
+  const {data:profile} = await supa.from('profiles').select('role').eq('id',user.id).single();
+  userRole = profile?.role || 'user';
+  document.getElementById('user-info').textContent = user.email;
+  if (userRole==='admin') {
+    document.getElementById('upload-btn').style.display='flex';
+    document.getElementById('admin-btn').style.display='flex';
+  }
+  showScreen('dashboard-screen');
+  await initialLoad();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none';});
+  const el=document.getElementById(id); el.style.display='flex'; el.classList.add('active');
+}
+
+// ── AUTH ──
+async function doLogin() {
+  const email=document.getElementById('login-email').value.trim();
+  const pass =document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-err');
+  errEl.textContent='';
+  if(!email||!pass){errEl.textContent='E-posta ve şifre gerekli.';return;}
+  const {data,error}=await supa.auth.signInWithPassword({email,password:pass});
+  if(error){errEl.textContent='Giriş başarısız: '+error.message;return;}
+  await initUser(data.user);
+}
+async function doLogout(){
+  await supa.auth.signOut(); showScreen('login-screen');
+}
+
+// ── İLK YÜKLEMEde meta + filtre seçenekleri + veri ──
+async function initialLoad() {
+  setEmpty(true,'Yükleniyor...','');
+
+  // Bütçe + meta paralel çek
+  const [budgetRes, deptBudgetRes, metaRes, hasDataRes, prodActualRes] = await Promise.all([
+    supa.from('budget_settings').select('*'),
+    supa.from('budget_by_dept').select('*'),
+    supa.from('excel_meta').select('*').eq('id',1).single(),
+    supa.from('excel_rows').select('id',{count:'exact',head:true}),
+    supa.from('production_actual').select('*'),
+  ]);
+
+  budgetData    = budgetRes.data     || [];   // cihaz/radyatör hedef adetleri
+  deptBudget    = deptBudgetRes.data || [];   // alt departman bazlı saat bütçesi
+  prodActual    = prodActualRes.data || [];
+
+  if (!hasDataRes.count) {
+    setEmpty(false,
+      userRole==='admin'?'Henüz veri yüklenmedi':'Henüz veri yok',
+      userRole==='admin'?'Excel Yükle butonuyla Mavi Yaka dosyasını yükleyin.':'Admin henüz veri yüklememiş.'
+    );
+    return;
+  }
+
+  // Filtre seçeneklerini doldur
+  await populateFilterOptions();
+
+  // Tarih aralığını belirle
+  const dateRes = await supa.from('excel_rows')
+    .select('tarih')
+    .order('tarih',{ascending:true})
+    .limit(1);
+  const dateResMax = await supa.from('excel_rows')
+    .select('tarih')
+    .order('tarih',{ascending:false})
+    .limit(1);
+  if (dateRes.data?.[0]?.tarih)    document.getElementById('f-start').value = dateRes.data[0].tarih.slice(0,10);
+  if (dateResMax.data?.[0]?.tarih) document.getElementById('f-end').value   = dateResMax.data[0].tarih.slice(0,10);
+
+  if (metaRes.data?.upload_date) {
+    const d=new Date(metaRes.data.upload_date);
+    document.getElementById('last-update').textContent =
+      d.toLocaleDateString('tr-TR')+' '+d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  // İlk veriyi çek
+  await fetchAndRender();
+
+  document.getElementById('empty-state').style.display='none';
+  document.getElementById('dash-content').style.display='flex';
+}
+
+async function populateFilterOptions() {
+  // Distinct değerleri Supabase RPC ile çek — pagination sorununu önler
+  const [deptRes, altRes] = await Promise.all([
+    supa.rpc('get_distinct_values', {col_name: 'departman'}),
+    supa.rpc('get_distinct_values', {col_name: 'alt_departman'}),
+  ]);
+
+  // RPC yoksa fallback: limit yüksek tutarak çek
+  let uniqueDepts, uniqueAlts;
+  if (deptRes.error) {
+    const {data:d} = await supa.from('excel_rows').select('departman').neq('departman',null).limit(50000);
+    uniqueDepts = [...new Set((d||[]).map(r=>r.departman).filter(Boolean))].sort();
+  } else {
+    uniqueDepts = (deptRes.data||[]).map(r=>r.value).filter(Boolean).sort();
+  }
+  if (altRes.error) {
+    const {data:a} = await supa.from('excel_rows').select('alt_departman').neq('alt_departman',null).limit(50000);
+    uniqueAlts = [...new Set((a||[]).map(r=>r.alt_departman).filter(Boolean))].sort();
+  } else {
+    uniqueAlts = (altRes.data||[]).map(r=>r.value).filter(Boolean).sort();
+  }
+
+  fillSel('f-dept', uniqueDepts);
+  fillSel('f-alt',  uniqueAlts);
+
+  // Devamsızlık türü filtresi — hangi kolonlarda veri var
+  await buildTypeFilter();
+}
+
+async function buildTypeFilter() {
+  const {data:meta} = await supa.from('excel_meta').select('aktif_kolonlar').eq('id',1).single();
+  const aktif = meta?.aktif_kolonlar || [];
+
+  const sel = document.getElementById('f-type');
+  sel.innerHTML = '';
+
+  // Tümü — default, normal çalışmayı etkilemez
+  const tumuOpt = document.createElement('option');
+  tumuOpt.value='toplam'; tumuOpt.textContent='Tümü';
+  sel.appendChild(tumuOpt);
+
+  // Önlenebilir devamsızlık
+  const onlOpt = document.createElement('option');
+  onlOpt.value='onlenebilir'; onlOpt.textContent='Önlenebilir Devamsızlık';
+  sel.appendChild(onlOpt);
+
+  const onlGrp = document.createElement('optgroup');
+  onlGrp.label = '— Önlenebilir Alt Kırılımlar';
+  let hasOnl=false;
+  ONLENEBILIR_DEF.forEach(({key,lbl}) => {
+    if (aktif.includes(key)) {
+      const o=document.createElement('option');
+      o.value='col_'+key; o.textContent='  '+lbl;
+      onlGrp.appendChild(o); hasOnl=true;
+    }
+  });
+  if(hasOnl) sel.appendChild(onlGrp);
+
+  // Toplam devamsızlık alt kırılımlar
+  const topGrp = document.createElement('optgroup');
+  topGrp.label = '— Toplam Alt Kırılımlar';
+  let hasTop=false;
+  TOPLAM_DEF.forEach(({key,lbl}) => {
+    if (aktif.includes(key)) {
+      const o=document.createElement('option');
+      o.value='col_'+key; o.textContent='  '+lbl;
+      topGrp.appendChild(o); hasTop=true;
+    }
+  });
+  if(hasTop) sel.appendChild(topGrp);
+}
+
+// ── FİLTRE DEĞİŞİNCE ──
+function onFilterChange() {
+  clearTimeout(filterDebounce);
+  filterDebounce = setTimeout(fetchAndRender, 400);
+}
+
+function resetFilters() {
+  gset('f-dept',''); gset('f-alt','');
+  document.getElementById('f-type').value='toplam';
+  gset('f-start',''); gset('f-end','');
+  fetchAndRender();
+}
+
+// ── ANA VERİ ÇEKME — Supabase RPC ──
+async function fetchAndRender() {
+  const dept  = gv('f-dept')  || null;
+  const alt   = gv('f-alt')   || null;
+  const type  = gv('f-type');
+  const start = gv('f-start') || null;
+  const end   = gv('f-end')   || null;
+
+  // RPC parametreleri
+  const params = {
+    p_dept:       dept,
+    p_alt_dept:   alt,
+    p_start_date: start,
+    p_end_date:   end,
+  };
+
+  // Devamsızlık türü filtresi için ek WHERE
+  // Tek kolon filtresi için ayrı RPC gerekir — bunu query filter ile yapıyoruz
+  let deptQuery = supa.rpc('get_dashboard_summary', params);
+  let empQuery  = supa.rpc('get_employee_summary',  params);
+
+  const [deptRes, empRes] = await Promise.all([deptQuery, empQuery]);
+
+  if (deptRes.error) { console.error(deptRes.error); return; }
+  if (empRes.error)  { console.error(empRes.error);  return; }
+
+  deptData = deptRes.data || [];
+  empData  = empRes.data  || [];
+
+  // Devamsızlık türü filtresi — sadece gösterilecek devamsızlık değerini ayarla
+  // Normal çalışma ve FM hiçbir zaman filtrelenmez
+  if (type==='onlenebilir') {
+    // toplam_dev yerine onlenebilir_dev göster
+    deptData = deptData.map(r=>({...r, toplam_dev: r.onlenebilir_dev||0}));
+    empData  = empData.map(r=>({...r,  toplam_dev: r.onlenebilir_dev||0}));
+  } else if (type.startsWith('col_')) {
+    const colKey = type.replace('col_','');
+    await fetchSingleColFilter(colKey, dept, alt, start, end);
+    return;
+  }
+  // 'toplam' seçiliyse hiçbir şey değişmez
+
+  renderAll();
+}
+
+async function fetchSingleColFilter(colKey, dept, alt, start, end) {
+  // Belirli bir kolon filtresi için ham tablodan group by yapıyoruz
+  // Supabase JS'de group by yok — RPC kullanıyoruz
+  // Şimdilik: tüm veriyi çekip client'ta filtrele (bu kolon nadir seçilir)
+  let q = supa.from('excel_rows')
+    .select('departman,alt_departman,normal,fm50,fm75,fm100a,fm100b,devsiz,sebebsiz,yillik,ucretsiz,olum,diger_ucrli,ucrli_12,rapor,is_kazasi,sendika,pandemi,izin_90,izin_75,kismi_istihdam,okul,ucretsiz_12,babalik,evlenme,d_oncesi,d_sonrasi,ucrl_rapor,vizite,sut_izni,engelli_cocuk,ks_calisma,fm_sonrasi,sicil,adi,soyadi')
+    .gt(colKey, 0);
+  if (dept)  q=q.eq('departman',dept);
+  if (alt)   q=q.eq('alt_departman',alt);
+  if (start) q=q.gte('tarih',start);
+  if (end)   q=q.lte('tarih',end);
+
+  const {data:rows, error} = await q;
+  if (error) { console.error(error); return; }
+
+  // Client'ta aggregate
+  const dMap={}, eMap={};
+  (rows||[]).forEach(r=>{
+    const dk = r.alt_departman||r.departman||'Diğer';
+    if(!dMap[dk]) dMap[dk]={alt_departman:r.alt_departman,departman:r.departman,normal_calisma:0,fm:0,toplam_dev:0,onlenebilir_dev:0};
+    dMap[dk].normal_calisma+=n(r.normal);
+    dMap[dk].fm+=n(r.fm50)+n(r.fm75)+n(r.fm100a)+n(r.fm100b);
+    dMap[dk].toplam_dev+=TOPLAM_KEYS.reduce((s,k)=>s+n(r[k]),0);
+    dMap[dk].onlenebilir_dev+=ONL_KEYS.reduce((s,k)=>s+n(r[k]),0);
+
+    const ek=r.sicil;
+    if(!eMap[ek]) eMap[ek]={sicil:r.sicil,ad:(r.adi||'')+' '+(r.soyadi||''),departman:r.departman,alt_departman:r.alt_departman,normal_calisma:0,fm:0,toplam_dev:0,onlenebilir_dev:0};
+    eMap[ek].normal_calisma+=n(r.normal);
+    eMap[ek].fm+=n(r.fm50)+n(r.fm75)+n(r.fm100a)+n(r.fm100b);
+    eMap[ek].toplam_dev+=TOPLAM_KEYS.reduce((s,k)=>s+n(r[k]),0);
+    eMap[ek].onlenebilir_dev+=ONL_KEYS.reduce((s,k)=>s+n(r[k]),0);
+  });
+  deptData=Object.values(dMap);
+  empData=Object.values(eMap);
+  renderAll();
+}
+
+const TOPLAM_KEYS=['devsiz','sebebsiz','yillik','ucretsiz','olum','diger_ucrli','ucrli_12','rapor','is_kazasi','sendika','pandemi','izin_90','izin_75','kismi_istihdam','okul','ucretsiz_12','babalik','evlenme','d_oncesi','d_sonrasi','ucrl_rapor','vizite','sut_izni','engelli_cocuk','ks_calisma','fm_sonrasi'];
+const ONL_KEYS=['devsiz','sebebsiz','ucretsiz','rapor','is_kazasi'];
+
+function renderAll() {
+  renderKPIs();
+  renderProd();
+  renderCharts();
+  buildAndRenderEmpTable();
+}
+
+// ── KPIs ──
+// Seçili tarih aralığı için aylık bütçeleri gün bazında hesapla
+function calcBudgetForRange(start, end, altDeptFilter) {
+  if(!start || !end) return {bc:0, bm:0, cihazHedef:0, radHedef:0};
+  const s = new Date(start), e = new Date(end);
+  let bc=0, bm=0, cihazHedef=0, radHedef=0;
+
+  let cur = new Date(s.getFullYear(), s.getMonth(), 1);
+  while(cur <= e) {
+    const yil = cur.getFullYear();
+    const ay  = cur.getMonth()+1;
+    const ayGun   = new Date(yil, ay, 0).getDate();
+    const ayBas   = new Date(yil, ay-1, 1);
+    const aySon   = new Date(yil, ay, 0);
+    const arasBas = s > ayBas ? s : ayBas;
+    const arasSon = e < aySon ? e : aySon;
+    const seciliGun = Math.round((arasSon - arasBas) / 86400000) + 1;
+    const oran = seciliGun / ayGun;
+
+    // Dept bazlı bütçe — filtreye göre topla
+    const dRows = deptBudget.filter(r => r.yil===yil && r.ay===ay &&
+      (!altDeptFilter || r.alt_departman===altDeptFilter));
+    bc += dRows.reduce((s,r)=>s+(r.butce_saat||0),0)    * oran;
+    bm += dRows.reduce((s,r)=>s+(r.fm_butce_saat||0),0) * oran;
+
+    // Cihaz/radyatör hedef adetleri
+    const b = budgetData.find(r=>r.yil===yil && r.ay===ay);
+    if(b) {
+      cihazHedef += (b.cihaz_hedef_adet||0)    * oran;
+      radHedef   += (b.radyator_hedef_adet||0) * oran;
+    }
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return {bc, bm, cihazHedef, radHedef};
+}
+
+// Gerçekleşen üretimi tarih aralığına göre hesapla
+function calcProdActualForRange(start, end) {
+  if(!start || !end || !prodActual.length) return {cihaz:0, rad:0};
+  const s=new Date(start), e=new Date(end);
+
+  // Seçili aralık içindeki tüm kayıtları topla
+  const inRange = prodActual
+    .map(r=>({...r, d:new Date(r.tarih)}))
+    .filter(r=>r.d>=s && r.d<=e);
+
+  if(!inRange.length) return {cihaz:0, rad:0};
+
+  // Tüm adetleri topla
+  return {
+    cihaz: inRange.reduce((s,r)=>s+(r.cihaz_gerceklesen_adet||0),0),
+    rad:   inRange.reduce((s,r)=>s+(r.radyator_gerceklesen_adet||0),0),
+  };
+}
+
+function renderKPIs() {
+  const nc = deptData.reduce((s,r)=>s+(r.normal_calisma||0),0);
+  const td = deptData.reduce((s,r)=>s+(r.toplam_dev||0),0);
+  const od = deptData.reduce((s,r)=>s+(r.onlenebilir_dev||0),0);
+  const fm = deptData.reduce((s,r)=>s+(r.fm||0),0);
+  const base=nc+td;
+  const tdPct=base>0?td/base*100:0;
+  const odPct=base>0?od/base*100:0;
+  const fmPct=nc>0?fm/nc*100:0;
+
+  st('k-nc',f2(nc)); st('k-td',f2(td)); st('k-od',f2(od)); st('k-fm',f2(fm));
+  st('p-td',base>0?`%${tdPct.toFixed(1)}`:'');
+  st('p-od',base>0?`%${odPct.toFixed(1)}`:'');
+  st('p-fm',nc>0?`%${fmPct.toFixed(1)}`:'');
+
+  // Tarih aralığına göre bütçe hesapla
+  const start=gv('f-start'), end=gv('f-end');
+  const altDeptF = gv('f-alt') || null;
+  const bud=calcBudgetForRange(start,end,altDeptF);
+  const bc=bud.bc, bm=bud.bm;
+
+  st('k-bc',bc>0?f2(bc):'—'); st('k-bm',bm>0?f2(bm):'—');
+  // Progress barlar — gerçekleşen vs bütçe
+  const ncPct  = bc>0 ? Math.min(nc/bc*100, 100) : 75;
+  const fmBPct = bm>0 ? Math.min(fm/bm*100, 100) : 0;
+  // Devamsızlık barları: max görünür değer 20x ölçekle
+  const tdBarPct = Math.min(tdPct/20*100, 100);
+  const odBarPct = Math.min(odPct/10*100, 100);
+
+  sw('b-nc', ncPct);
+  sw('b-bc', bc>0 ? ncPct : 0);
+  sw('b-td', tdBarPct);
+  sw('b-od', odBarPct);
+  sw('b-fm', bm>0 ? fmBPct : Math.min(fmPct*5,100));
+  sw('b-bm', bm>0 ? fmBPct : 0);
+
+  st('chart-sub',`${empData.length} çalışan`);
+}
+
+// ── ÜRETİM ──
+function renderProd() {
+  const start=gv('f-start'), end=gv('f-end');
+  const bud=calcBudgetForRange(start,end,null);
+  const act=calcProdActualForRange(start,end);
+
+  // Gerçekleşen saat — Excel'den cihaz/radyatör alt dept normal+fm
+  const cr=deptData.filter(r=>r.alt_departman==='Cihaz Üretim');
+  const rr=deptData.filter(r=>r.alt_departman==='Radyatör Üretim');
+  const cs=cr.reduce((s,r)=>s+(r.normal_calisma||0)+(r.fm||0),0);
+  const rs=rr.reduce((s,r)=>s+(r.normal_calisma||0)+(r.fm||0),0);
+
+  // Bütçe saatleri — budget_by_dept'ten cihaz ve radyatör dept toplamı
+  const cihazBudgetRows = deptBudget.filter(r=>r.alt_departman==='Cihaz Üretim');
+  const radBudgetRows   = deptBudget.filter(r=>r.alt_departman==='Radyatör Üretim');
+  const cihazBudgetSaat = calcDeptBudgetSaat(cihazBudgetRows, start, end);
+  const radBudgetSaat   = calcDeptBudgetSaat(radBudgetRows,   start, end);
+
+  const cG = act.cihaz>0 && cs>0             ? act.cihaz/cs                     : null;
+  const cH = bud.cihazHedef>0 && cihazBudgetSaat>0 ? bud.cihazHedef/cihazBudgetSaat : null;
+  const rG = act.rad>0 && rs>0               ? act.rad/rs                       : null;
+  const rH = bud.radHedef>0 && radBudgetSaat>0     ? bud.radHedef/radBudgetSaat     : null;
+
+  st('p-cg',cG!==null?cG.toFixed(3):'—');
+  st('p-ch',cH!==null?cH.toFixed(3):'—');
+  st('p-rg',rG!==null?rG.toFixed(3):'—');
+  st('p-rh',rH!==null?rH.toFixed(3):'—');
+  setDiff('p-cdiff',cG,cH); setDiff('p-rdiff',rG,rH);
+}
+
+// Belirli dept satırları için tarih aralığında bütçe saatini hesapla
+function calcDeptBudgetSaat(rows, start, end) {
+  if(!start || !end || !rows.length) return 0;
+  const s=new Date(start), e=new Date(end);
+  let total=0;
+  let cur=new Date(s.getFullYear(), s.getMonth(), 1);
+  while(cur<=e){
+    const yil=cur.getFullYear(), ay=cur.getMonth()+1;
+    const ayGun=new Date(yil,ay,0).getDate();
+    const ayBas=new Date(yil,ay-1,1), aySon=new Date(yil,ay,0);
+    const arasBas=s>ayBas?s:ayBas, arasSon=e<aySon?e:aySon;
+    const seciliGun=Math.round((arasSon-arasBas)/86400000)+1;
+    const oran=seciliGun/ayGun;
+    const r=rows.find(r=>r.yil===yil&&r.ay===ay);
+    if(r) total+=(r.butce_saat||0)*oran;
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return total;
+}
+
+function setDiff(id,g,h){
+  const el=document.getElementById(id); if(!el)return;
+  if(g!==null&&h!==null&&h>0){const d=(g-h)/h*100;el.textContent=`${d>=0?'+':''}${d.toFixed(1)}%`;el.className='prod-diff '+(d>=0?'pos':'neg');}
+  else el.textContent='';
+}
+
+// ── CHARTS ──
+function renderCharts() {
+  const alts=[...new Set(deptData.map(r=>r.alt_departman).filter(Boolean))].sort();
+  if(!alts.length)return;
+  const totByD=alts.map(d=>{const rs=deptData.filter(r=>r.alt_departman===d);const td=rs.reduce((s,r)=>s+(r.toplam_dev||0),0),nc=rs.reduce((s,r)=>s+(r.normal_calisma||0),0);return nc+td>0?td/(nc+td)*100:0;});
+  const onlByD=alts.map(d=>{const rs=deptData.filter(r=>r.alt_departman===d);const od=rs.reduce((s,r)=>s+(r.onlenebilir_dev||0),0),td=rs.reduce((s,r)=>s+(r.toplam_dev||0),0),nc=rs.reduce((s,r)=>s+(r.normal_calisma||0),0);return nc+td>0?od/(nc+td)*100:0;});
+  charts.top=mkChart('c-top',charts.top,alts,totByD,3);
+  charts.onl=mkChart('c-onl',charts.onl,alts,onlByD,1);
+}
+
+// Her alt departman için sabit renk paleti
+const DEPT_COLORS = {
+  'Radyatör Üretim': {bg:'rgba(14,165,233,.15)',  border:'#0ea5e9'},
+  'Cihaz Üretim':    {bg:'rgba(139,92,246,.15)',  border:'#8b5cf6'},
+  'Eşanjör Üretim':  {bg:'rgba(20,184,166,.15)',  border:'#14b8a6'},
+  'Bakım':           {bg:'rgba(245,158,11,.15)',  border:'#f59e0b'},
+  'Lojistik Birimi': {bg:'rgba(99,102,241,.15)',  border:'#6366f1'},
+  'Kalite Birimi':   {bg:'rgba(236,72,153,.15)',  border:'#ec4899'},
+  'İnsan Kaynakları':{bg:'rgba(34,197,94,.15)',   border:'#22c55e'},
+  'Arge Birimi':     {bg:'rgba(249,115,22,.15)',  border:'#f97316'},
+  'SSH':             {bg:'rgba(100,116,139,.15)', border:'#64748b'},
+};
+const DEFAULT_COLOR = {bg:'rgba(30,58,95,.12)', border:'#1e3a5f'};
+const RED_COLOR     = {bg:'rgba(220,38,38,.12)', border:'#dc2626'};
+
+function mkChart(id,old,labels,data,target){
+  const ctx=document.getElementById(id);if(!ctx)return null;if(old)old.destroy();
+  const bgColors     = data.map((v,i)=>v>target ? RED_COLOR.bg     : (DEPT_COLORS[labels[i]]||DEFAULT_COLOR).bg);
+  const borderColors = data.map((v,i)=>v>target ? RED_COLOR.border : (DEPT_COLORS[labels[i]]||DEFAULT_COLOR).border);
+  return new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:bgColors,borderColor:borderColors,borderWidth:1.5,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` %${c.parsed.y.toFixed(2)}`}}},scales:{x:{grid:{display:false},ticks:{font:{size:10,family:'Plus Jakarta Sans'},color:'#94a3b8',maxRotation:35,minRotation:20,autoSkip:false}},y:{min:0,max:Math.max(...data,target+0.5)*1.3+0.2,grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>`%${v}`,font:{size:10,family:'Plus Jakarta Sans'},color:'#94a3b8'}}},animation:{duration:400}},
+    plugins:[{id:'tl',afterDraw(chart){const{ctx:c,scales:{x,y}}=chart;const yp=y.getPixelForValue(target);c.save();c.strokeStyle='#dc2626';c.lineWidth=1.2;c.setLineDash([5,4]);c.beginPath();c.moveTo(x.left,yp);c.lineTo(x.right,yp);c.stroke();c.setLineDash([]);c.fillStyle='#dc2626';c.font='10px Plus Jakarta Sans';c.fillText(`Hedef %${target}`,x.right-60,yp-4);c.restore();}}]
+  });
+}
+
+// ── ÇALIŞAN TABLOSU ──
+function buildAndRenderEmpTable() {
+  // Alt departman bazında: normal çalışma + toplam devamsızlık = payda
+  const altTotals={};
+  deptData.forEach(r=>{
+    const k=r.alt_departman||'';
+    if(!altTotals[k])altTotals[k]={base:0,od:0};
+    altTotals[k].base += (r.normal_calisma||0) + (r.toplam_dev||0);
+    altTotals[k].od   += (r.onlenebilir_dev||0);
+  });
+
+  // İşten ayrıldı tespiti: dosyadaki en son tarihten 3+ gün önce biten çalışanlar
+  const maxTarih = empData.reduce((mx,e)=>{
+    if(!e.son_tarih) return mx;
+    const d = new Date(e.son_tarih);
+    return d > mx ? d : mx;
+  }, new Date(0));
+
+  // Ayrılıp dönen kişileri ad+departman bazında birleştir
+  const personMap = {};
+  empData.forEach(e => {
+    const key = (e.ad||'').trim().toLowerCase() + '|' + (e.departman||'').toLowerCase();
+    if (!personMap[key]) {
+      personMap[key] = {
+        ad: (e.ad||'').trim(),
+        altDept: e.alt_departman||'',
+        dept: e.departman||'',
+        nc: 0, td: 0, od: 0, fm: 0,
+        sonTarih: null,
+        siciller: [],
+      };
+    }
+    personMap[key].nc  += (e.normal_calisma||0);
+    personMap[key].td  += (e.toplam_dev||0);
+    personMap[key].od  += (e.onlenebilir_dev||0);
+    personMap[key].fm  += (e.fm||0);
+    personMap[key].siciller.push(e.sicil);
+    const st2 = e.son_tarih ? new Date(e.son_tarih) : null;
+    if (st2 && (!personMap[key].sonTarih || st2 > personMap[key].sonTarih)) {
+      personMap[key].sonTarih = st2;
+    }
+  });
+
+  const agg = Object.values(personMap).map(e => {
+    const base = e.nc + e.td;
+    const altBase = altTotals[e.altDept]?.base||0;
+    const altOd   = altTotals[e.altDept]?.od||0;
+    const farkGun = e.sonTarih ? Math.round((maxTarih - e.sonTarih)/(1000*60*60*24)) : 0;
+    const ayrildi = farkGun >= 3;
+    const dondu   = e.siciller.length > 1;
+    return {
+      ad:      e.ad,
+      altDept: e.altDept,
+      topPct:  base>0    ? e.td/base*100      : 0,
+      onlPct:  base>0    ? e.od/base*100      : 0,
+      altTop:  altBase>0 ? e.td/altBase*100   : 0,
+      altOnl:  altBase>0 ? e.od/altBase*100   : 0,
+      fm:      e.fm,
+      ayrildi,
+      dondu,
+    };
+  });
+
+  st('emp-sub',`${agg.length} çalışan · ${agg.filter(e=>e.ayrildi).length} işten ayrıldı`);
+
+  const q=gv('emp-search').toLowerCase();
+  empVis=agg.filter(e=>!q||e.ad.toLowerCase().includes(q)||(e.sicil||'').toLowerCase().includes(q)||e.altDept.toLowerCase().includes(q));
+  empVis.sort((a,b)=>{let va=a[_sk],vb=b[_sk];if(typeof va==='string'){va=va.toLowerCase();vb=vb.toLowerCase();}return(va<vb?-1:va>vb?1:0)*_sd;});
+
+  ['ad','altDept','onlPct','topPct','altOnl','altTop','fm'].forEach(k=>{
+    const th=document.getElementById('th-'+k);
+    if(th)th.className=_sk===k?(_sd===-1?'desc':'asc'):'';
+  });
+
+  document.getElementById('emp-tbody').innerHTML=empVis.length
+    ?empVis.map(e=>{
+      const oc=e.onlPct>=50?'hi':e.onlPct>=15?'mid':'lo';
+      const tc=e.topPct>=50?'hi':e.topPct>=15?'mid':'lo';
+      let badges = '';
+      if (e.ayrildi) badges += ' <span style="font-size:10px;font-weight:600;background:var(--amber-l);color:var(--amber);padding:2px 7px;border-radius:4px;white-space:nowrap">işten ayrıldı</span>';
+
+      const fmCell = e.fm >= 270
+        ? `<span class="rv" style="color:var(--red)">${f2(e.fm)} ⚠</span>`
+        : e.fm > 0
+          ? `<span class="rv tl">${f2(e.fm)}</span>`
+          : '<span class="dc">—</span>';
+      return`<tr style="${e.ayrildi?'opacity:.65':''}">
+        <td><b>${e.ad}</b>${badges}</td>
+        <td>${e.altDept||'<span class="dc">—</span>'}</td>
+        <td><span class="rv ${oc}">%${e.onlPct.toFixed(1)}</span></td>
+        <td><span class="rv ${tc}">%${e.topPct.toFixed(1)}</span></td>
+        <td><span class="rv lo">%${e.altOnl.toFixed(1)}</span></td>
+        <td><span class="rv lo">%${e.altTop.toFixed(1)}</span></td>
+        <td>${fmCell}</td>
+      </tr>`;
+    }).join('')
+    :`<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:28px">Sonuç bulunamadı</td></tr>`;
+
+  document.getElementById('emp-footer').textContent=`${empVis.length} / ${agg.length} çalışan`;
+}
+
+function renderTable(){buildAndRenderEmpTable();}
+function sortBy(key){if(_sk===key)_sd*=-1;else{_sk=key;_sd=-1;}buildAndRenderEmpTable();}
+
+// ── EXCEL UPLOAD ──
+function handleUpload(inp){const f=inp.files[0];if(f)readExcel(f);inp.value='';}
+
+// Beklenen departman ve alt departman listeleri
+const BEKLENEN_DEPT = [
+  'Arge ve Kalite Müdürlüğü','Ssh','Tedarik Zinciri Müdürlüğü',
+  'Üretim ve Bakım Müdürlüğü','İnsan Kaynaklari Müdürlüğü'
+];
+const BEKLENEN_ALT = [
+  'Arge Birimi','Bakım','Cihaz Üretim','Eşanjör Üretim',
+  'Kalite Birimi','Lojistik Birimi','Radyatör Üretim','SSH','İnsan Kaynakları'
+];
+
+function startEvolutionAnim() {
+  document.getElementById('loading-spinner').style.display='none';
+  const animDiv = document.getElementById('evolution-anim');
+  animDiv.style.display='flex';
+  const wrap = document.getElementById('evo-wrap');
+  wrap.innerHTML='';
+
+  // 5 evrim aşaması: emoji + eğim + isim
+  const stages = [
+    {emoji:'🦧', label:'Homo habilis',  tilt:'rotate(-35deg)', delay:0},
+    {emoji:'🧍', label:'Homo erectus',  tilt:'rotate(-20deg)', delay:0.12},
+    {emoji:'🧍', label:'H. heidelberg', tilt:'rotate(-8deg)',  delay:0.24},
+    {emoji:'🧍', label:'Neanderthal',   tilt:'rotate(-2deg)',  delay:0.36},
+    {emoji:'🧍', label:'Homo sapiens',  tilt:'rotate(0deg)',   delay:0.48},
+  ];
+
+  const positions = [0, 62, 124, 186, 248];
+
+  stages.forEach((s,i) => {
+    const div = document.createElement('div');
+    div.className = 'evo-char';
+    div.style.left = positions[i]+'px';
+    div.style.animationDelay = s.delay+'s';
+
+    const icon = document.createElement('div');
+    icon.className = 'evo-char-icon';
+    icon.style.fontSize = '32px';
+    icon.style.transform = s.tilt;
+    icon.style.animationDelay = s.delay+'s';
+    icon.style.display = 'inline-block';
+    icon.textContent = s.emoji;
+
+    const lbl = document.createElement('span');
+    lbl.textContent = s.label;
+
+    div.appendChild(icon);
+    div.appendChild(lbl);
+    wrap.appendChild(div);
+
+    // Ok işareti (son hariç)
+    if(i < 4) {
+      const arr = document.createElement('div');
+      arr.className = 'evo-arrow';
+      arr.style.left = (positions[i]+46)+'px';
+      arr.style.animationDelay = (s.delay+0.3)+'s';
+      arr.textContent = '→';
+      wrap.appendChild(arr);
+    }
+  });
+}
+
+function stopEvolutionAnim() {
+  document.getElementById('evolution-anim').style.display='none';
+  document.getElementById('loading-spinner').style.display='block';
+}
+
+function readExcel(file){
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      const wsn=wb.SheetNames.find(s=>s.toLowerCase().includes('mavi'))||wb.SheetNames[0];
+      const ws=wb.Sheets[wsn];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:false});
+      const headerRow=raw[1]||[];
+      if(!headerRow.some(h=>h&&h.toString().includes('NORMAL'))){alert('Dosya formatı uyumsuz. Lütfen standart Mavi Yaka dosyasını yükleyin.');return;}
+      const dataRows=raw.slice(2).filter(r=>r&&r[C.adi]);
+      if(!dataRows.length){alert('Dosyada veri bulunamadı.');return;}
+
+      // ── VALIDASYON ──
+      const hatalıDept   = new Set();
+      const hatalıAlt    = new Set();
+      dataRows.forEach(r=>{
+        const dept = (r[C.dept]||'').trim();
+        const alt  = (r[C.altDept]||'').trim();
+        if(!dept || !BEKLENEN_DEPT.includes(dept)) hatalıDept.add(dept||'(boş)');
+        if(!alt  || !BEKLENEN_ALT.includes(alt))   hatalıAlt.add(alt||'(boş)');
+      });
+      if(hatalıDept.size > 0 || hatalıAlt.size > 0){
+        let msg = 'Hatalı departman verisi tespit edildi, yükleme durduruldu.\n\n';
+        if(hatalıDept.size) msg += 'Tanımlanmamış departmanlar:\n' + [...hatalıDept].join('\n') + '\n\n';
+        if(hatalıAlt.size)  msg += 'Tanımlanmamış alt departmanlar:\n' + [...hatalıAlt].join('\n');
+        alert(msg);
+        return;
+      }
+
+      // ── LOADING ──
+      document.getElementById('empty-state').style.display='flex';
+      document.getElementById('dash-content').style.display='none';
+      startEvolutionAnim();
+      document.getElementById('empty-title').textContent='Veriler Yükleniyor';
+      document.getElementById('empty-sub').textContent=`${dataRows.length} satır işleniyor...`;
+
+      // ── UPSERT (sicil + tarih unique) ──
+      const BATCH=500;
+      for(let i=0;i<dataRows.length;i+=BATCH){
+        const batch=dataRows.slice(i,i+BATCH).map(r=>rowToDb(r)).filter(r=>r.sicil&&r.tarih);
+        const {error}=await supa.from('excel_rows').upsert(batch,{onConflict:'sicil,tarih'});
+        if(error){stopEvolutionAnim();alert('Hata: '+error.message);return;}
+        document.getElementById('empty-sub').textContent=`${Math.min(i+BATCH,dataRows.length)} / ${dataRows.length} satır yüklendi...`;
+      }
+      stopEvolutionAnim();
+
+      // Aktif kolonları hesapla
+      const allDefs = [...new Set([...TOPLAM_DEF, ...ONLENEBILIR_DEF].map(d=>d.key))];
+      const C_MAP = {
+        devsiz:'devsiz', sebebsiz:'sebebsiz', yillik:'yillik', ucretsiz:'ucretsiz',
+        olum:'olum', diger_ucrli:'digerUcrli', ucrli_12:'ucrli12', rapor:'rapor',
+        is_kazasi:'isKazasi', sendika:'sendika', pandemi:'pandemi', izin_90:'izin90',
+        izin_75:'izin75', kismi_istihdam:'kismiIstihdam', okul:'okul', ucretsiz_12:'ucretsiz12',
+        babalik:'babalik', evlenme:'evlenme', d_oncesi:'dOncesi', d_sonrasi:'dSonrasi',
+        ucrl_rapor:'ucrlRapor', vizite:'vizite', sut_izni:'sutIzni',
+        engelli_cocuk:'engelliCocuk', ks_calisma:'ksCalisma', fm_sonrasi:'fmSonrasi',
+      };
+      const aktifKolonlar = allDefs.filter(key => {
+        const cKey = C_MAP[key];
+        if (!cKey) return false;
+        const colIdx = C[cKey];
+        return colIdx !== undefined && dataRows.some(r => n(r[colIdx]) > 0);
+      });
+
+      // Meta güncelle
+      await supa.from('excel_meta').update({
+        upload_date:new Date().toISOString(),
+        toplam_satir:dataRows.length,
+        toplam_calisan:new Set(dataRows.map(r=>r[C.sicil])).size,
+        aktif_kolonlar: aktifKolonlar,
+      }).eq('id',1);
+
+      await initialLoad();
+    }catch(err){alert('Hata: '+err.message);}
+  };
+  reader.readAsBinaryString(file);
+}
+
+function rowToDb(r){
+  return{
+    sicil:r[C.sicil]?.toString()||null, adi:r[C.adi]||null, soyadi:r[C.soyadi]||null,
+    departman:r[C.dept]||null, alt_departman:r[C.altDept]||null,
+    tarih:parseDate(r[C.tarih])?fmtD(parseDate(r[C.tarih])):null,
+    normal:n(r[C.normal]), htatil:n(r[C.htatil]), gtatil:n(r[C.gtatil]), devsiz:n(r[C.devsiz]), sebebsiz:n(r[C.sebebsiz]),
+    fm50:n(r[C.fm50]), fm75:n(r[C.fm75]), fm100a:n(r[C.fm100a]), fm100b:n(r[C.fm100b]),
+    yillik:n(r[C.yillik]), ucretsiz:n(r[C.ucretsiz]), ks_calisma:n(r[C.ksCalisma]),
+    fm_sonrasi:n(r[C.fmSonrasi]), babalik:n(r[C.babalik]), olum:n(r[C.olum]),
+    evlenme:n(r[C.evlenme]), diger_ucrli:n(r[C.digerUcrli]), ucrli_12:n(r[C.ucrli12]),
+    d_oncesi:n(r[C.dOncesi]), d_sonrasi:n(r[C.dSonrasi]), rapor:n(r[C.rapor]),
+    ucrl_rapor:n(r[C.ucrlRapor]), is_kazasi:n(r[C.isKazasi]), gorevli:n(r[C.gorevli]),
+    vizite:n(r[C.vizite]), sendika:n(r[C.sendika]), pandemi:n(r[C.pandemi]), uzaktan:n(r[C.uzaktan]),
+    sut_izni:n(r[C.sutIzni]), izin_90:n(r[C.izin90]), izin_75:n(r[C.izin75]),
+    engelli_cocuk:n(r[C.engelliCocuk]), kismi_istihdam:n(r[C.kismiIstihdam]),
+    okul:n(r[C.okul]), ucretsiz_12:n(r[C.ucretsiz12]),
+  };
+}
+
+// ── CSV ──
+function downloadCSV(){
+  if(!empVis.length){alert('Veri yok.');return;}
+  const hdr=['Ad Soyad','Alt Departman','Önl. %','Top. Dev. %','Alt Önl. %','Alt Top. %','FM Saat'];
+  const rows=empVis.map(e=>[e.ad,e.altDept,e.onlPct.toFixed(1),e.topPct.toFixed(1),e.altOnl.toFixed(1),e.altTop.toFixed(1),e.fm.toFixed(1)]);
+  const csv='\uFEFF'+[hdr,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='iktrack_calisan_ozet.csv';a.click();
+}
+
+function setEmpty(loading,title,sub){
+  document.getElementById('loading-spinner').style.display=loading?'block':'none';
+  document.getElementById('empty-title').textContent=title;
+  document.getElementById('empty-sub').textContent=sub;
+  document.getElementById('empty-state').style.display='flex';
+  document.getElementById('dash-content').style.display='none';
+}
+
+// ── UTILS ──
+const n=v=>{const f=parseFloat(String(v??'').replace(',','.'));return isNaN(f)?0:f;};
+const f2=v=>v.toLocaleString('tr-TR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const fmtD=d=>{
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+day;
+};
+const gv=id=>document.getElementById(id)?.value||'';
+const gset=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
+const st=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+const sw=(id,p)=>{const e=document.getElementById(id);if(e)e.style.width=Math.min(p,100)+'%';};
+const parseDate=val=>{
+  if(!val) return null;
+  if(typeof val==='number'){
+    const excelEpoch = new Date(1899,11,30);
+    const d = new Date(excelEpoch.getTime() + val * 86400000);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(val).trim();
+  // M/D/YY veya M/D/YYYY formatı — timezone sorununu önlemek için UTC parse
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(mdy){
+    let [,mo,dy,yr] = mdy;
+    if(yr.length===2) yr = '20'+yr;
+    return new Date(Date.UTC(parseInt(yr), parseInt(mo)-1, parseInt(dy)));
+  }
+  // YYYY-MM-DD formatı
+  const ymd = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(ymd){
+    const [,yr,mo,dy] = ymd;
+    return new Date(Date.UTC(parseInt(yr), parseInt(mo)-1, parseInt(dy)));
+  }
+  return null;
+};
+function fillSel(id,vals){const s=document.getElementById(id);const cur=s.value;s.innerHTML='<option value="">Tümü</option>'+vals.map(v=>`<option value="${v}">${v}</option>`).join('');if(cur)s.value=cur;}
+</script>
+</body>
+</html>

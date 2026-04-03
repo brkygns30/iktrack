@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İKTrack – Admin Paneli</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f3f7;--surface:#fff;--s2:#f8f8fb;
+  --border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.13);
+  --text:#18182c;--text2:#6b6b82;--text3:#a0a0b8;
+  --purple:#5341C8;--purple-l:#eeedfe;
+  --teal:#1D9E75;--teal-l:#e1f5ee;
+  --red:#D85A30;--red-l:#faece7;
+  --blue:#185FA5;--blue-l:#e6f1fb;
+  --amber:#BA7517;--amber-l:#faeeda;
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:54px;position:sticky;top:0;z-index:200}
+.topbar-l{display:flex;align-items:center;gap:14px}
+.logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;color:var(--text);text-decoration:none}
+.logo-box{width:32px;height:32px;background:var(--purple);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700}
+.vsep{width:1px;height:20px;background:var(--border2)}
+.tbtn{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#fff;background:var(--purple);border:none;border-radius:7px;padding:7px 15px;cursor:pointer;transition:.15s;font-family:inherit;text-decoration:none}
+.tbtn:hover{opacity:.85}
+.tbtn.outline{background:transparent;color:var(--purple);border:1px solid var(--purple)}
+.tbtn.outline:hover{background:var(--purple-l)}
+.tbtn.danger{background:transparent;color:var(--red);border:1px solid var(--border2)}
+.tbtn.danger:hover{background:var(--red-l);border-color:var(--red)}
+.topbar-r{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text3)}
+.user-info{font-size:12px;color:var(--text2)}
+
+.wrap{padding:28px;max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+.page-title{font-size:22px;font-weight:600;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text2)}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:0}
+.tab{padding:11px 20px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;user-select:none}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--purple);border-bottom-color:var(--purple)}
+
+/* PANEL CARD */
+.panel-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.panel-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.panel-head h2{font-size:15px;font-weight:600}
+.panel-body{padding:20px}
+
+/* AY SEÇİCİ */
+.month-nav{display:flex;align-items:center;gap:12px}
+.mnav-btn{width:32px;height:32px;background:var(--s2);border:1px solid var(--border2);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:.15s}
+.mnav-btn:hover{background:var(--purple-l);color:var(--purple);border-color:var(--purple)}
+.month-label{font-size:14px;font-weight:600;min-width:120px;text-align:center}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)}
+.fg input{font-family:inherit;font-size:14px;color:var(--text);background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;outline:none;transition:.15s;width:100%}
+.fg input:focus{border-color:var(--purple)}
+.fg .hint{font-size:11px;color:var(--text3)}
+.save-row{display:flex;align-items:center;gap:12px}
+.save-btn{font-family:inherit;font-size:13px;font-weight:600;color:#fff;background:var(--purple);border:none;border-radius:8px;padding:9px 20px;cursor:pointer;transition:.15s}
+.save-btn:hover{opacity:.88}
+.save-btn:disabled{opacity:.5;cursor:not-allowed}
+.msg-ok{font-size:12px;color:var(--teal);font-weight:500}
+.msg-err{font-size:12px;color:var(--red);font-weight:500}
+
+/* ÜRETİM GERÇEKLEŞEN TABLOSU */
+.prod-table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600;padding:9px 14px;text-align:left;background:var(--s2);border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#f5f5fc}
+tbody td{padding:8px 14px;font-size:13px}
+.add-row{display:flex;align-items:flex-end;gap:10px;margin-top:16px;flex-wrap:wrap}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:4px;border-radius:4px;transition:.15s}
+.del-btn:hover{color:var(--red);background:var(--red-l)}
+
+.access-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;gap:16px;text-align:center}
+.spinner{width:24px;height:24px;border:2px solid var(--purple-l);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:640px){.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-l">
+    <a class="logo" href="index.html"><div class="logo-box">İK</div>İKTrack</a>
+    <div class="vsep"></div>
+    <a class="tbtn outline" href="index.html">← Dashboard'a Dön</a>
+  </div>
+  <div class="topbar-r">
+    <span class="user-info" id="user-info"></span>
+    <div class="vsep"></div>
+    <button class="tbtn danger" onclick="doLogout()">Çıkış</button>
+  </div>
+</div>
+
+<div class="wrap" id="main-wrap">
+  <div class="access-denied"><div class="spinner"></div><p>Yükleniyor...</p></div>
+</div>
+
+<script>
+const SUPA_URL='https://zwvffqaxzlgdnnqxrjkl.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3dmZmcWF4emxnZG5ucXhyamtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDU5MjUsImV4cCI6MjA5MDcyMTkyNX0.mTE703dwRHwHGNdh985NzGBQYOvpI1jpv0ObNhfTGtY';
+const supa=supabase.createClient(SUPA_URL,SUPA_KEY);
+
+const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+let curYear=new Date().getFullYear(), curMonth=new Date().getMonth()+1;
+let budgetCache={}, prodActualCache=[];
+let activeTab='butce';
+
+document.addEventListener('DOMContentLoaded',async()=>{
+  const {data:{session}}=await supa.auth.getSession();
+  if(!session){window.location.href='index.html';return;}
+  document.getElementById('user-info').textContent=session.user.email;
+  const {data:profile}=await supa.from('profiles').select('role').eq('id',session.user.id).single();
+  if(profile?.role!=='admin'){
+    document.getElementById('main-wrap').innerHTML=`<div class="access-denied"><div style="font-size:40px">🔒</div><h2>Erişim Yetkiniz Yok</h2><p>Bu sayfa sadece admin kullanıcılar içindir.</p><a class="tbtn" href="index.html">Dashboard'a Dön</a></div>`;
+    return;
+  }
+  await loadAll();
+  renderPage();
+});
+
+async function loadAll(){
+  const [{data:b},{data:p}]=await Promise.all([
+    supa.from('budget_settings').select('*'),
+    supa.from('production_actual').select('*').order('tarih',{ascending:false}),
+  ]);
+  budgetCache={};
+  (b||[]).forEach(r=>{budgetCache[r.yil+'_'+r.ay]=r;});
+  prodActualCache=p||[];
+}
+
+async function doLogout(){await supa.auth.signOut();window.location.href='index.html';}
+
+function renderPage(){
+  const wrap=document.getElementById('main-wrap');
+  wrap.innerHTML=`
+    <div>
+      <div class="page-title">Admin Paneli</div>
+      <div class="page-sub">Bütçe ve üretim değerlerini yönetin</div>
+    </div>
+    <div class="tabs">
+      <div class="tab ${activeTab==='butce'?'active':''}" onclick="switchTab('butce')">Aylık Bütçe</div>
+      <div class="tab ${activeTab==='prod'?'active':''}" onclick="switchTab('prod')">Gerçekleşen Üretim</div>
+    </div>
+    <div id="tab-content"></div>
+  `;
+  renderTabContent();
+}
+
+function switchTab(t){activeTab=t;renderPage();}
+
+function renderTabContent(){
+  const el=document.getElementById('tab-content');
+  if(activeTab==='butce') el.innerHTML=renderBudgetTab();
+  else el.innerHTML=renderProdTab();
+}
+
+function renderBudgetTab(){
+  const key=curYear+'_'+curMonth;
+  const d=budgetCache[key]||{};
+  return `
+    <div class="panel-card">
+      <div class="panel-head">
+        <h2>Aylık Bütçe Değerleri</h2>
+        <div class="month-nav">
+          <button class="mnav-btn" onclick="changeMonth(-1)">‹</button>
+          <div class="month-label">${MONTHS[curMonth-1]} ${curYear}</div>
+          <button class="mnav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:16px">
+          ${ayGunSayisi(curYear,curMonth)} gün · Bütçelenmiş çalışma ve mesai saatleri alt departman bazlı tablodan otomatik hesaplanır.
+        </div>
+
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:10px">Cihaz Üretim</div>
+        <div class="form-grid">
+          <div class="fg">
+            <label>Hedef Adet</label>
+            <input type="number" id="cihaz-hedef" min="0" value="${d.cihaz_hedef_adet||''}">
+            <span class="hint">Aylık hedef üretim adedi</span>
+          </div>
+        </div>
+
+        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:10px;margin-top:8px">Radyatör Üretim</div>
+        <div class="form-grid">
+          <div class="fg">
+            <label>Hedef Adet</label>
+            <input type="number" id="rad-hedef" min="0" value="${d.radyator_hedef_adet||''}">
+            <span class="hint">Aylık hedef üretim adedi</span>
+          </div>
+        </div>
+
+        <div class="save-row">
+          <button class="save-btn" onclick="saveBudget()">Kaydet</button>
+          <span id="budget-msg"></span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderProdTab(){
+  const rows=prodActualCache.map(r=>`
+    <tr>
+      <td>${r.tarih}</td>
+      <td>${r.cihaz_gerceklesen_adet||0}</td>
+      <td>${r.radyator_gerceklesen_adet||0}</td>
+      <td><button class="del-btn" onclick="deleteProd(${r.id})">✕</button></td>
+    </tr>`).join('');
+
+  return `
+    <div class="panel-card">
+      <div class="panel-head"><h2>Gerçekleşen Üretim Verileri</h2></div>
+      <div class="panel-body">
+        <p style="font-size:12px;color:var(--text2);margin-bottom:16px">
+          Her satır "X tarihe kadar üretilen toplam adet" anlamına gelir. Dashboard seçilen tarihe göre gün bazında orantılar.
+        </p>
+        <div class="prod-table-wrap">
+          <table>
+            <thead><tr>
+              <th>Tarih (itibariyle)</th>
+              <th>Cihaz Gerçekleşen (adet)</th>
+              <th>Radyatör Gerçekleşen (adet)</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="prod-tbody">${rows||'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Henüz veri yok</td></tr>'}</tbody>
+          </table>
+        </div>
+        <div class="add-row">
+          <div class="fg">
+            <label>Tarih</label>
+            <input type="date" id="new-tarih">
+          </div>
+          <div class="fg">
+            <label>Cihaz Adet</label>
+            <input type="number" id="new-cihaz" min="0" placeholder="0">
+          </div>
+          <div class="fg">
+            <label>Radyatör Adet</label>
+            <input type="number" id="new-rad" min="0" placeholder="0">
+          </div>
+          <button class="save-btn" onclick="addProd()">+ Ekle</button>
+          <span id="prod-msg"></span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function changeMonth(dir){
+  curMonth+=dir;
+  if(curMonth>12){curMonth=1;curYear++;}
+  if(curMonth<1){curMonth=12;curYear--;}
+  renderTabContent();
+}
+
+function ayGunSayisi(y,m){return new Date(y,m,0).getDate();}
+
+async function saveBudget(){
+  const payload={
+    yil:curYear, ay:curMonth,
+    cihaz_hedef_adet:    nv('cihaz-hedef'),
+    radyator_hedef_adet: nv('rad-hedef'),
+  };
+  const {error}=await supa.from('budget_settings').upsert(payload,{onConflict:'yil,ay'});
+  if(error){showMsg('budget-msg',false,'Hata: '+error.message);}
+  else{
+    budgetCache[curYear+'_'+curMonth]={...budgetCache[curYear+'_'+curMonth],...payload};
+    showMsg('budget-msg',true,'Kaydedildi ✓');
+  }
+}
+
+async function addProd(){
+  const tarih=document.getElementById('new-tarih').value;
+  if(!tarih){alert('Tarih seçin.');return;}
+  const payload={
+    tarih,
+    cihaz_gerceklesen_adet:    nv('new-cihaz'),
+    radyator_gerceklesen_adet: nv('new-rad'),
+  };
+  const {error}=await supa.from('production_actual').upsert(payload,{onConflict:'tarih'});
+  if(error){showMsg('prod-msg',false,'Hata: '+error.message);}
+  else{
+    await loadAll();
+    renderTabContent();
+    showMsg('prod-msg',true,'Eklendi ✓');
+  }
+}
+
+async function deleteProd(id){
+  if(!confirm('Bu kaydı silmek istiyor musunuz?'))return;
+  const {error}=await supa.from('production_actual').delete().eq('id',id);
+  if(!error){await loadAll();renderTabContent();}
+}
+
+function showMsg(id,ok,msg){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.className=ok?'msg-ok':'msg-err';
+  el.textContent=msg;
+  setTimeout(()=>{el.textContent='';},3000);
+}
+
+const nv=id=>{const v=parseFloat(document.getElementById(id)?.value||'0');return isNaN(v)?0:v;};
+</script>
+</body>
+</html>
