@@ -791,16 +791,29 @@ function calcBudgetForRange(start, end, altDeptFilter) {
 function calcProdActualForRange(start, end) {
   if(!start || !end || !prodActual.length) return {cihaz:0, rad:0};
   const s=new Date(start), e=new Date(end);
-  const inRange = prodActual
-    .map(r=>({...r, d:new Date(r.tarih)}))
-    .filter(r=>r.d>=s && r.d<=e)
-    .sort((a,b)=>b.d-a.d);
-  if(!inRange.length) return {cihaz:0, rad:0};
-  const latest = inRange[0];
-  return {
-    cihaz: latest.cihaz_gerceklesen_adet||0,
-    rad:   latest.radyator_gerceklesen_adet||0,
-  };
+
+  // Her ay için o ay içindeki en son kaydı al, sonra ayları topla
+  let cihaz=0, rad=0;
+  let cur = new Date(s.getFullYear(), s.getMonth(), 1);
+  while(cur <= e) {
+    const ayBas = new Date(cur.getFullYear(), cur.getMonth(), 1);
+    const aySon = new Date(cur.getFullYear(), cur.getMonth()+1, 0);
+    const arasBas = s > ayBas ? s : ayBas;
+    const arasSon = e < aySon ? e : aySon;
+
+    // Bu ay aralığındaki kayıtları bul, en sonuncuyu al
+    const ayKayitlar = prodActual
+      .map(r=>({...r, d:new Date(r.tarih)}))
+      .filter(r=>r.d>=arasBas && r.d<=arasSon)
+      .sort((a,b)=>b.d-a.d);
+
+    if(ayKayitlar.length) {
+      cihaz += ayKayitlar[0].cihaz_gerceklesen_adet||0;
+      rad   += ayKayitlar[0].radyator_gerceklesen_adet||0;
+    }
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return {cihaz, rad};
 }
 
 function renderKPIs() {
