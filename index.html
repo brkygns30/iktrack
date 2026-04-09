@@ -791,18 +791,15 @@ function calcBudgetForRange(start, end, altDeptFilter) {
 function calcProdActualForRange(start, end) {
   if(!start || !end || !prodActual.length) return {cihaz:0, rad:0};
   const s=new Date(start), e=new Date(end);
-
-  // Seçili aralık içindeki tüm kayıtları topla
   const inRange = prodActual
     .map(r=>({...r, d:new Date(r.tarih)}))
-    .filter(r=>r.d>=s && r.d<=e);
-
+    .filter(r=>r.d>=s && r.d<=e)
+    .sort((a,b)=>b.d-a.d);
   if(!inRange.length) return {cihaz:0, rad:0};
-
-  // Tüm adetleri topla
+  const latest = inRange[0];
   return {
-    cihaz: inRange.reduce((s,r)=>s+(r.cihaz_gerceklesen_adet||0),0),
-    rad:   inRange.reduce((s,r)=>s+(r.radyator_gerceklesen_adet||0),0),
+    cihaz: latest.cihaz_gerceklesen_adet||0,
+    rad:   latest.radyator_gerceklesen_adet||0,
   };
 }
 
@@ -1190,9 +1187,22 @@ function readExcel(file){
   reader.readAsBinaryString(file);
 }
 
+function normalizeSicil(val) {
+  if (!val) return null;
+  const s = val.toString().trim();
+  // İŞKUR sicilleri — olduğu gibi kabul et
+  if (s.toUpperCase().startsWith('İŞKUR') || s.toUpperCase().startsWith('ISKUR')) return s.toUpperCase();
+  // Sadece rakamsa — 8 haneye sıfır doldur
+  if (/^\d+$/.test(s)) return s.padStart(8, '0');
+  // 8 haneli ve sıfırla başlıyorsa — olduğu gibi kabul et
+  if (s.length === 8 && s.startsWith('0')) return s;
+  // Başka format — null döndür (bu satır atlanır)
+  return s;
+}
+
 function rowToDb(r){
   return{
-    sicil:r[C.sicil]?.toString()||null, adi:r[C.adi]||null, soyadi:r[C.soyadi]||null,
+    sicil:normalizeSicil(r[C.sicil]), adi:r[C.adi]||null, soyadi:r[C.soyadi]||null,
     departman:r[C.dept]||null, alt_departman:r[C.altDept]||null,
     tarih:parseDate(r[C.tarih])?fmtD(parseDate(r[C.tarih])):null,
     normal:n(r[C.normal]), htatil:n(r[C.htatil]), gtatil:n(r[C.gtatil]), devsiz:n(r[C.devsiz]), sebebsiz:n(r[C.sebebsiz]),
